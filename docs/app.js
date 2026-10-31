@@ -438,6 +438,7 @@
     document.querySelectorAll('.vista').forEach((s) => s.classList.toggle('on', s.dataset.vista === v));
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.dataset.tab === v));
     guardar('birras-tab', v);
+    document.body.dataset.vista = v;
     if (v === 'noche' && S) requestAnimationFrame(pintarNoche);
     window.scrollTo({ top: 0 });
   }
@@ -544,9 +545,13 @@
     ['birra', 'Birra', 'linear-gradient(135deg,#ffb21a,#ff3d81)'], ['neon', 'Neón', 'linear-gradient(135deg,#ff00d4,#00e5ff)'],
     ['oceano', 'Océano', 'linear-gradient(135deg,#00c2ff,#3a5bff)'], ['toxico', 'Tóxico', 'linear-gradient(135deg,#b6ff00,#00b3ff)'],
     ['fresa', 'Fresa', 'linear-gradient(135deg,#ffb3c7,#ff2e5e)'], ['noche', 'Noche', 'linear-gradient(135deg,#30305a,#08080f)'],
+    ['claro', 'Claro', 'linear-gradient(135deg,#fff7e8,#ffd27a)'], ['auto', 'Automático (claro de día, oscuro de noche según el móvil)', 'linear-gradient(135deg,#fff7e8 50%,#16050c 50%)'],
   ];
+  const oscuroSistema = matchMedia('(prefers-color-scheme: dark)');
+  oscuroSistema.addEventListener && oscuroSistema.addEventListener('change', () => { if (leer('birras-tema') === 'auto') ponerTema('auto'); });
   function ponerTema(t) {
-    if (t === 'birra') delete document.documentElement.dataset.tema; else document.documentElement.dataset.tema = t;
+    const real = t === 'auto' ? (oscuroSistema.matches ? 'birra' : 'claro') : t;
+    if (real === 'birra') delete document.documentElement.dataset.tema; else document.documentElement.dataset.tema = real;
     guardar('birras-tema', t);
     const T = TEMAS.find((x) => x[0] === t);
     $('temaTxt').textContent = `${T[1]} · solo cambia en tu móvil`;
@@ -732,9 +737,27 @@
   }
 
   /* ================= Arranque ================= */
-  irA(['bote', 'casino', 'noche', 'mesa'].includes(leer('birras-tab')) ? leer('birras-tab') : 'bote');
-  if (!yo || !B.USERS.includes(yo)) { yo = null; pedirSilla(); }
+  /* Puente para los módulos nuevos (diario): lo que necesitan del resto de la app. */
+  window.BirrasApp = {
+    toast, preguntar, vibrar, sonar, flotante, confeti, irA,
+    yo: () => yo,
+    boteActivo: () => !!(S && B.USERS.some((u) => ahora() - Math.max(S.users[u].ultEv || 0, S.users[u].ultBebida || 0) < 6 * 3600)),
+    sumarAlBote: () => { if (!yo) return; apuntar(yo, 'cerveza', 1); sonar('moneda'); vibrar('medio'); },
+  };
+
+  /* Aviso de mayoría de edad (una vez por móvil). */
+  if (leer('birras-edad') !== 'ok') $('capaEdad').classList.add('on');
+  $('edadSi').onclick = () => { guardar('birras-edad', 'ok'); $('capaEdad').classList.remove('on'); vibrar('suave'); if (!yo) pedirSilla(); };
+  $('edadNo').onclick = () => {
+    $('edadT').textContent = 'Vuelve cuando cumplas 18';
+    $('edadTxt').textContent = 'Esta app no es para menores de edad.';
+    $('edadBotones').hidden = true;
+  };
+
+  irA(['diario', 'bote', 'casino', 'noche', 'mesa'].includes(leer('birras-tab')) ? leer('birras-tab') : 'diario');
+  if ((!yo || !B.USERS.includes(yo)) && leer('birras-edad') === 'ok') { yo = null; pedirSilla(); } else if (!B.USERS.includes(yo)) yo = null;
   cargar();
+  setTimeout(() => $('capaCarga').classList.add('fuera'), 2500);   // el diario no depende de la red
   setInterval(tic, 1000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
