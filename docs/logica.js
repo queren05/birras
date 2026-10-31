@@ -159,7 +159,7 @@
     const d = msg.d, t = msg.time, ef = [];
     if (!d || !pendiente(s, msg)) return ef;
     const u = d.u, U = s.users[u];
-    if (d.k === 'snap' || !U) { return ef; }
+    if (d.k === 'snap' || d.k === 'foto' || !U) { return ef; }
     marcar(s, msg);
     const mult = () => (t < s.happy ? 2 : 1);
 

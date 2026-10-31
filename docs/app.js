@@ -23,6 +23,40 @@
   const hora = (t) => new Date(t * 1000).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const inicial = (u) => B.NOMBRES[u][0];
 
+  /* ================= Fotos de perfil =================
+   * Miniatura JPEG de 96 px en el propio canal (cabe en un mensaje). El servidor
+   * de casa las guarda y las vuelve a publicar para que no caduquen a las 12 h. */
+  let fotos = {}; try { fotos = JSON.parse(leer('birras-fotos') || '{}'); } catch (e) { fotos = {}; }
+  const fotoValida = (x) => typeof x === 'string' && x.startsWith('data:image/jpeg;base64,') && x.length < 3900;
+  function av(u, extra = '') {
+    const f = fotos[u];
+    return f ? `<span class="av ${u} con-foto ${extra}" style="background-image:url('${f}')"></span>` : `<span class="av ${u} ${extra}">${inicial(u)}</span>`;
+  }
+  function recibirFoto(d) {
+    if (!B.USERS.includes(d.u)) return false;
+    if (d.img === null) delete fotos[d.u]; else if (fotoValida(d.img)) fotos[d.u] = d.img; else return false;
+    guardar('birras-fotos', JSON.stringify(fotos));
+    return true;
+  }
+  async function hacerMiniatura(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+      const lado = Math.min(img.naturalWidth, img.naturalHeight);
+      for (const [px, q] of [[96, .72], [88, .6], [80, .5], [64, .45]]) {
+        const c = document.createElement('canvas'); c.width = c.height = px;
+        const x = c.getContext('2d');
+        x.imageSmoothingQuality = 'high';
+        x.drawImage(img, (img.naturalWidth - lado) / 2, (img.naturalHeight - lado) / 2, lado, lado, 0, 0, px, px);
+        const d = c.toDataURL('image/jpeg', q);
+        if (fotoValida(d)) return d;
+      }
+      return null;
+    } finally { URL.revokeObjectURL(url); }
+  }
+  let fotoPara = null;
+  function elegirFoto(u) { fotoPara = u; $('fotoInput').value = ''; $('fotoInput').click(); }
+
   /* ================= Red ================= */
   /* Envío con cola: si no hay cobertura, la jugada se guarda en el móvil y se
    * manda sola en cuanto vuelve la conexión (no se pierde nada). */
@@ -84,6 +118,7 @@
       for (const m of ms) if (m.event === 'message') {
         ultimoId = m.id;
         const p = B.parsear(m);
+        if (p && p.d.k === 'foto') recibirFoto(p.d);
         if (p && p.d.k === 'snap') ultSnap = Math.max(ultSnap, m.time);
       }
       S = B.reconstruir(ms, null) || B.estadoInicial(Math.floor(Date.now() / 1000));
@@ -107,6 +142,10 @@
       ultimoId = m.id;
       const p = B.parsear(m);
       if (!p) return;
+      if (p.d.k === 'foto') {
+        if (recibirFoto(p.d)) { $('tienda').dataset.h = ''; pintar(); if (!misEids.has(p.d.eid)) toast(`📷  ${B.NOMBRES[p.d.u]} estrena foto`); }
+        return;
+      }
       if (p.d.k === 'snap') {
         ultSnap = Math.max(ultSnap, m.time);
         if (!S || p.d.s.upto > S.upto + 5) { S = B.normalizar(B.clon(p.d.s)); pintar(); }
@@ -160,7 +199,7 @@
       const U = S.users[u], p = aporte(u);
       const seg = ORDEN_VIS.map((t) => U.c[t] ? `<i class="t-${t}" style="width:${U.c[t] * B.TIPOS[t].pts / lider * 100}%"></i>` : '').join('');
       const ic = Object.keys(B.TIPOS).filter((t) => U.c[t]).map((t) => `${B.TIPOS[t].ico} ${U.c[t]}`).join('  ') || 'sin estrenar';
-      return `<div class="jug${u === yo ? ' yo' : ''}${p ? '' : ' cero'}"><span class="av ${u}">${inicial(u)}</span>
+      return `<div class="jug${u === yo ? ' yo' : ''}${p ? '' : ' cero'}">${av(u)}
         <div class="info"><div class="linea"><b>${B.NOMBRES[u]}</b>${i === 0 && p ? '<span class="corona">👑</span>' : ''}<span class="ic">${ic}</span></div><div class="barra">${seg}</div></div>
         <div class="pts num">${B.fmtPts(p)}<small>puntos</small></div></div>`;
     }).join('');
@@ -168,7 +207,7 @@
     $('ranking').innerHTML = orden.map((u, i) => {
       const U = S.users[u], seg = Math.max(0, now - U.ultCerveza);
       return `<div class="persona glass${u === yo ? ' yo' : ''}${secos.has(u) ? ' seco' : ''}" data-persona="${u}" role="button" tabindex="0" aria-label="Corregir a ${B.NOMBRES[u]}">
-        <span class="av ${u}">${inicial(u)}</span>
+        ${av(u)}
         <div><div class="nom">${B.NOMBRES[u]}<span class="pos">${['🥇', '🥈', '🥉'][i] || ''}</span></div>
           <div class="det num"><span>🍺 ${U.c.cerveza}</span><span>🥃 ${U.c.cubata}</span><span>🥂 ${U.c.chupito}</span><span>🚬 ${U.c.cigarro}</span></div>
           <div class="hace${secos.has(u) ? ' mal' : ''}">${secos.has(u) ? 'Seco desde hace ' : 'Última cerveza hace '}${B.horasTexto(seg)} · ${U.fichas} fichas${U.castigos ? ` · 💀 ${U.castigos}` : ''}</div>
@@ -187,7 +226,7 @@
     // Lo mío
     if (!yo || !S.users[yo]) return;
     const U = S.users[yo];
-    $('yoAv').textContent = inicial(yo); $('yoAv').className = 'av ' + yo;
+    $('yoAv').outerHTML = av(yo).replace('<span ', '<span id="yoAv" ');
     $('yoNom').textContent = B.NOMBRES[yo];
     $('cambiarTxt').textContent = `Ahora eres ${B.NOMBRES[yo]}`;
     $('misFichas').textContent = U.fichas;
@@ -310,7 +349,7 @@
   function pintarTienda(U) {
     const html = Object.entries(B.TIENDA).map(([k, P]) =>
       `<button class="pw glass pulsable" data-pw="${k}" ${U.fichas < P.coste ? 'disabled' : ''}><span class="e">${P.ico}</span><b>${P.nombre}</b><span>${P.desc}</span><span class="c">${P.coste} fichas</span></button>`).join('') +
-      `<div class="dianas${dianaAbierta ? ' on' : ''}">${B.USERS.filter((u) => u !== yo).map((u) => `<button class="pulsable" data-diana="${u}"><span class="av ${u}">${inicial(u)}</span>${B.NOMBRES[u]}</button>`).join('')}</div>`;
+      `<div class="dianas${dianaAbierta ? ' on' : ''}">${B.USERS.filter((u) => u !== yo).map((u) => `<button class="pulsable" data-diana="${u}">${av(u)}${B.NOMBRES[u]}</button>`).join('')}</div>`;
     if ($('tienda').dataset.h !== html) { $('tienda').innerHTML = html; $('tienda').dataset.h = html; }
   }
 
@@ -368,6 +407,11 @@
         sonar('moneda'); vibrar('medio');
         apuntar(yo, b.dataset.tipo, 1);
       }
+    } else if (b.dataset.foto) {
+      elegirFoto(b.dataset.foto);
+    } else if (b.dataset.quitarfoto) {
+      const u = b.dataset.quitarfoto;
+      preguntar('¿Quitar la foto?', `${B.NOMBRES[u]} volverá a salir con su inicial.`, 'Quitar', true).then((si) => { if (si) publicar({ k: 'foto', u, img: null, por: yo }); });
     } else if (b.dataset.modo) {
       modo = b.dataset.modo;
       document.querySelectorAll('.modo-b').forEach((x) => x.classList.toggle('on', x === b));
@@ -425,9 +469,23 @@
     $('fixT').textContent = `Corregir a ${B.NOMBRES[fixU]}`;
     $('fixFilas').innerHTML = Object.keys(B.TIPOS).map((t) => `<div class="fix-fila"><span class="e">${B.TIPOS[t].ico}</span><b>${B.TIPOS[t].plural}</b>
       <button class="menos pulsable" data-fix="${t}:-1" aria-label="Quitar ${B.TIPOS[t].un}">−</button><span class="n num">${S.users[fixU].c[t]}</span><button class="pulsable" data-fix="${t}:1" aria-label="Añadir ${B.TIPOS[t].un}">+</button></div>`).join('') +
+      `<div class="foto-acc"><button class="pulsable" data-foto="${fixU}">📷 ${fotos[fixU] ? 'Cambiar foto' : 'Poner foto'}</button>${fotos[fixU] ? `<button class="pulsable" data-quitarfoto="${fixU}">Quitar foto</button>` : ''}</div>` +
       (pila.length ? `<button class="deshacer pulsable" id="fixDeshacer" style="justify-self:center">↩︎ Deshacer lo último</button>` : '');
     const fd = $('fixDeshacer'); if (fd) fd.onclick = deshacer;
   }
+  $('fotoInput').addEventListener('change', async () => {
+    const f = $('fotoInput').files[0];
+    if (!f || !fotoPara) return;
+    const u = fotoPara; fotoPara = null;
+    toast('📷  Preparando la foto…');
+    let img = null;
+    try { img = await hacerMiniatura(f); } catch (e) { img = null; }
+    if (!img) return toast('No se ha podido leer esa imagen. Prueba con otra.');
+    recibirFoto({ u, img }); pintar(); if ($('capaFix').classList.contains('on')) pintarFix();
+    publicar({ k: 'foto', u, img, por: yo });
+    flotante('📷', `nueva foto de ${B.NOMBRES[u]}`); sonar('compra'); vibrar('medio');
+  });
+  $('miFotoBtn').onclick = () => { if (!yo) return pedirSilla(); elegirFoto(yo); };
   $('fixOk').onclick = () => { $('capaFix').classList.remove('on'); fixU = null; };
   $('palanca').onclick = () => {
     if (!yo || !S || S.users[yo].fichas < B.SLOT_COSTE || girando) return;
@@ -466,7 +524,7 @@
     $('sillas').innerHTML = B.USERS.map((u) => {
       const U = S && S.users[u];
       const n = U ? B.fmtPts(B.puntos(U)) : 0;
-      return `<button class="silla pulsable" data-silla="${u}"><span class="av ${u}">${inicial(u)}</span><b>${B.NOMBRES[u]}</b><span>${n} puntos</span></button>`;
+      return `<button class="silla pulsable" data-silla="${u}">${av(u)}<b>${B.NOMBRES[u]}</b><span>${n} puntos</span></button>`;
     }).join('');
     $('capaEntrar').classList.add('on');
   }

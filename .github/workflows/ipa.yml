@@ -39,6 +39,8 @@ jobs:
           PL=ios/App/App/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Birras" $PL || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string Birras" $PL
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" $PL || true
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string Para elegir tu foto de perfil" $PL || true
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string Para hacerte la foto de perfil" $PL || true
           /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations" $PL || true
           /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations array" $PL
           /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationPortrait" $PL
