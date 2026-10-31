@@ -31,7 +31,7 @@ button:focus-visible{outline:2px solid var(--espuma);outline-offset:3px}
 /* ---------- Fondo vivo ---------- */
 .fondo{position:fixed;inset:0;z-index:0;overflow:hidden;transition:background .6s;background:
   radial-gradient(120% 80% at 50% 110%,var(--base1) 0%,var(--base2) 22%,var(--base3) 55%,var(--noche-t) 85%)}
-.fondo i{position:absolute;border-radius:50%;filter:blur(60px);opacity:.85;will-change:transform}
+.fondo i{position:absolute;border-radius:50%;opacity:.85;will-change:transform;transform:translateZ(0)}
 .fondo .b1{width:70vmax;height:70vmax;left:-25vmax;top:-20vmax;background:radial-gradient(circle,var(--c1) 0,transparent 65%);animation:flota1 22s ease-in-out infinite alternate}
 .fondo .b2{width:60vmax;height:60vmax;right:-25vmax;top:10vh;background:radial-gradient(circle,var(--c2) 0,transparent 65%);animation:flota2 26s ease-in-out infinite alternate}
 .fondo .b3{width:80vmax;height:60vmax;left:-10vmax;bottom:-25vmax;background:radial-gradient(circle,var(--c3) 0,transparent 60%);animation:flota3 18s ease-in-out infinite alternate}
@@ -40,11 +40,11 @@ button:focus-visible{outline:2px solid var(--espuma);outline-offset:3px}
 @keyframes flota2{to{transform:translate(-22vw,30vh) scale(.9)}}
 @keyframes flota3{to{transform:translate(12vw,-18vh) scale(1.1)}}
 #burbujas{position:absolute;inset:0;width:100%;height:100%}
-.grano{position:absolute;inset:0;opacity:.07;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.grano{position:absolute;inset:0;opacity:.035;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
 /* ---------- Cristal ---------- */
 .glass{position:relative;border-radius:var(--r);background:linear-gradient(160deg,rgba(255,255,255,.2),rgba(255,255,255,.06) 45%,rgba(255,255,255,.1));
-  -webkit-backdrop-filter:blur(26px) saturate(190%);backdrop-filter:blur(26px) saturate(190%);
+  -webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);contain:paint;
   border:1px solid rgba(255,255,255,.22);
   box-shadow:var(--sombra),inset 0 1.5px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(255,255,255,.12),inset 0 0 22px rgba(255,255,255,.06)}
 .glass::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;padding:1px;
@@ -563,3 +563,10 @@ textarea{resize:vertical;min-height:70px}
 .personalizar{justify-self:center;padding:10px 18px;border-radius:99px;font-size:14px;font-weight:700;color:var(--txt2);background:rgba(255,255,255,.1)}
 .editando .personalizar{color:#3a1200;background:linear-gradient(160deg,#ffd257,#ff9d00)}
 @media (prefers-reduced-motion:reduce){.editando .modulo{animation:none}}
+
+/* ---------- Fluidez ---------- */
+html{-webkit-overflow-scrolling:touch}
+.fondo{contain:strict}
+.fondo .b1,.fondo .b2,.fondo .b3,.fondo .b4{animation-duration:40s}
+.vista:not(.on){content-visibility:hidden}
+.pulsable{will-change:transform}

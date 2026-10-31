@@ -769,7 +769,8 @@
   const reducido = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const lienzo = $('lienzo'), ctx = lienzo.getContext('2d');
   let parts = [], animando = false;
-  function ajustar(c) { c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio; }
+  const DPR_FONDO = Math.min(1.5, devicePixelRatio);   // las burbujas no necesitan resolución Retina completa
+  function ajustar(c, dpr = devicePixelRatio) { c.width = innerWidth * dpr; c.height = innerHeight * dpr; }
   function confeti(n, emojis) {
     if (reducido) n = Math.min(n, 12);
     const W = innerWidth, H = innerHeight;
@@ -779,27 +780,31 @@
     }
     if (!animando) { animando = true; requestAnimationFrame(paso); }
   }
-  function paso() {
+  let tConf = 0;
+  function paso(ts) {
+    const dt = tConf ? Math.min(3, (ts - tConf) / 16.67) : 1; tConf = ts;
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     ctx.clearRect(0, 0, innerWidth, innerHeight);
     parts = parts.filter((p) => p.y < innerHeight + 60 && p.v < 260);
     for (const p of parts) {
-      p.vy += .45; p.x += p.vx; p.y += p.vy; p.vx *= .99; p.r += p.vr; p.v++;
+      p.vy += .45 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.pow(.99, dt); p.r += p.vr * dt; p.v += dt;
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.font = `${p.s}px serif`; ctx.fillText(p.e, -p.s / 2, p.s / 2); ctx.restore();
     }
-    if (parts.length) requestAnimationFrame(paso); else { animando = false; ctx.clearRect(0, 0, innerWidth, innerHeight); }
+    if (parts.length) requestAnimationFrame(paso); else { animando = false; tConf = 0; ctx.clearRect(0, 0, innerWidth, innerHeight); }
   }
 
   /* Burbujas de fondo (como el gas de una caña) */
   const bc = $('burbujas'), bx = bc.getContext('2d');
-  const burbujas = Array.from({ length: reducido ? 0 : 36 }, () => nueva(true));
+  const burbujas = Array.from({ length: reducido ? 0 : 22 }, () => nueva(true));
+  let tAnt = 0;
   function nueva(ini) { return { x: Math.random(), y: ini ? Math.random() : 1.05, r: 1.5 + Math.random() * 4.5, v: .0006 + Math.random() * .0016, w: Math.random() * 6.28 }; }
-  function burbujear() {
+  function burbujear(ts) {
+    const dt = tAnt ? Math.min(3, (ts - tAnt) / 16.67) : 1; tAnt = ts;   // misma velocidad a 60 y a 120 Hz
     const W = innerWidth, H = innerHeight;
-    bx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    bx.setTransform(DPR_FONDO, 0, 0, DPR_FONDO, 0, 0);
     bx.clearRect(0, 0, W, H);
     for (const b of burbujas) {
-      b.y -= b.v; b.w += .03;
+      b.y -= b.v * dt; b.w += .03 * dt;
       if (b.y < -0.05) Object.assign(b, nueva(false));
       const x = b.x * W + Math.sin(b.w) * 6, y = b.y * H;
       bx.beginPath(); bx.arc(x, y, b.r, 0, 6.29);
@@ -807,11 +812,13 @@
       bx.strokeStyle = 'rgba(255,250,235,.45)'; bx.lineWidth = .8; bx.stroke();
       bx.beginPath(); bx.arc(x - b.r * .35, y - b.r * .35, b.r * .3, 0, 6.29); bx.fillStyle = 'rgba(255,255,255,.7)'; bx.fill();
     }
-    if (!document.hidden) requestAnimationFrame(burbujear);
+    if (!document.hidden) requestAnimationFrame(burbujear); else { burbujeando = false; tAnt = 0; }
   }
-  const redimensionar = () => { ajustar(lienzo); ajustar(bc); };
+  const redimensionar = () => { ajustar(lienzo); ajustar(bc, DPR_FONDO); };
   addEventListener('resize', redimensionar); redimensionar();
-  if (burbujas.length) requestAnimationFrame(burbujear);
+  let burbujeando = false;
+  const arrancarBurbujas = () => { if (burbujas.length && !burbujeando) { burbujeando = true; requestAnimationFrame(burbujear); } };
+  arrancarBurbujas();
 
   /* ================= Sonido sintetizado ================= */
   let ac = null;
@@ -926,7 +933,7 @@
   setInterval(tic, 1000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-      if (burbujas.length) requestAnimationFrame(burbujear);
+      arrancarBurbujas();
       if (!es || es.readyState === 2) cargar();
     }
   });
