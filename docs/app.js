@@ -14,7 +14,7 @@
   let pila = []; try { pila = JSON.parse(leer('birras-pila') || '[]'); } catch (e) { pila = []; }
   let modo = 'sumar', fixU = null;
   const guardarPila = () => { pila = pila.slice(-30); guardar('birras-pila', JSON.stringify(pila)); };
-  let broncaHasta = 0, yaAvisado = false, dianaVista = 0, megaAntes = null, dianaAbierta = false, girando = false;
+  let broncaHasta = 0, yaAvisado = false, dianaVista = +(leer('birras-diana') || 0), megaAntes = null, dianaAbierta = false, girando = false;
 
   function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function guardar(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } }
@@ -34,7 +34,9 @@
   }
   function recibirFoto(d) {
     if (!B.USERS.includes(d.u)) return false;
+    const antes = fotos[d.u] || null;
     if (d.img === null) delete fotos[d.u]; else if (fotoValida(d.img)) fotos[d.u] = d.img; else return false;
+    if ((fotos[d.u] || null) === antes) return false;   // repetida (reconexión o copia del servidor): nada que avisar
     guardar('birras-fotos', JSON.stringify(fotos));
     return true;
   }
@@ -134,7 +136,12 @@
     if (es) es.close();
     es = new EventSource(`${URL_TOPIC}/sse?since=${ultimoId || 'none'}`);
     es.onopen = () => estadoConexion(true);
-    es.onerror = () => estadoConexion(false);
+    es.onerror = () => {
+      estadoConexion(false);
+      es.close();
+      clearTimeout(conectar.t);
+      conectar.t = setTimeout(conectar, 3000);
+    };
     es.onmessage = (ev) => {
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       if (m.event === 'open') { desfase = m.time - Date.now() / 1000; return; }
@@ -143,7 +150,10 @@
       const p = B.parsear(m);
       if (!p) return;
       if (p.d.k === 'foto') {
-        if (recibirFoto(p.d)) { $('tienda').dataset.h = ''; pintar(); if (!misEids.has(p.d.eid)) toast(`📷  ${B.NOMBRES[p.d.u]} estrena foto`); }
+        if (recibirFoto(p.d)) {
+          $('tienda').dataset.h = ''; pintar();
+          if (!misEids.has(p.d.eid) && p.d.por !== 'servidor' && p.d.img) toast(`📷  ${B.NOMBRES[p.d.u]} estrena foto`);
+        }
         return;
       }
       if (p.d.k === 'snap') {
@@ -376,7 +386,7 @@
         }
       } else if (!meToca && $('broncaT').textContent === 'BEBE') { $('capaBronca').classList.remove('on'); yaAvisado = false; }
       if (S.diana && S.diana.u === yo && S.diana.t > dianaVista && now - S.diana.t < 180) {
-        dianaVista = S.diana.t;
+        dianaVista = S.diana.t; guardar('birras-diana', String(dianaVista));
         $('broncaT').textContent = '🎯';
         $('broncaFrase').textContent = `${B.NOMBRES[S.diana.por]} te ha puesto en la diana. Bebe YA, ${B.NOMBRES[yo]}.`;
         $('capaBronca').classList.add('on'); sonar('bronca'); vibrar('fuerte');
