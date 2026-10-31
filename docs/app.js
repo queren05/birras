@@ -843,6 +843,81 @@
     sumarAlBote: () => { if (!yo) return; apuntar(yo, 'cerveza', 1); sonar('moneda'); vibrar('medio'); },
   };
 
+  /* ================= Pantalla principal personalizable =================
+   * Cada bloque del Bote es un módulo: se puede subir, bajar (o arrastrar) y ocultar.
+   * El orden se guarda en este móvil (cada uno se lo monta a su gusto). */
+  const vistaBote = document.querySelector('[data-vista="bote"]');
+  const MODULOS = [...vistaBote.querySelectorAll('.modulo')].map((m) => m.dataset.modulo);
+  let prefs = { orden: MODULOS.slice(), ocultos: [] };
+  try { const g = JSON.parse(leer('birras-modulos') || 'null'); if (g && Array.isArray(g.orden)) prefs = { orden: g.orden, ocultos: g.ocultos || [] }; } catch (e) { /* por defecto */ }
+  const guardarPrefs = () => guardar('birras-modulos', JSON.stringify(prefs));
+  function aplicarModulos() {
+    const orden = [...prefs.orden.filter((m) => MODULOS.includes(m)), ...MODULOS.filter((m) => !prefs.orden.includes(m))];
+    prefs.orden = orden;
+    const fin = $('personalizar');
+    for (const id of orden) {
+      const el = vistaBote.querySelector(`[data-modulo="${id}"]`);
+      vistaBote.insertBefore(el, fin);
+      el.classList.toggle('oculto', prefs.ocultos.includes(id));
+      const barra = el.querySelector('.mod-barra');
+      if (barra) barra.querySelector('.mod-ojo').textContent = prefs.ocultos.includes(id) ? 'Mostrar' : 'Ocultar';
+    }
+  }
+  function editarModulos(on) {
+    vistaBote.classList.toggle('editando', on);
+    $('personalizar').textContent = on ? '✓ Listo' : '✥ Personalizar esta pantalla';
+    vistaBote.querySelectorAll('.mod-barra').forEach((b) => b.remove());
+    $('restablecer') && $('restablecer').remove();
+    if (on) {
+      vistaBote.querySelectorAll('.modulo').forEach((el) => {
+        el.insertAdjacentHTML('afterbegin', `<div class="mod-barra"><span class="mod-asa" aria-hidden="true">⠿</span><b>${el.dataset.nombre}</b>
+          <button class="mod-b" data-mod="subir" aria-label="Subir">↑</button><button class="mod-b" data-mod="bajar" aria-label="Bajar">↓</button><button class="mod-b mod-ojo" data-mod="ojo"></button></div>`);
+      });
+      $('personalizar').insertAdjacentHTML('afterend', '<button class="txt-btn" id="restablecer" style="justify-self:center">Volver al orden original</button>');
+      $('restablecer').onclick = () => { prefs = { orden: MODULOS.slice(), ocultos: [] }; guardarPrefs(); aplicarModulos(); vibrar('medio'); };
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    aplicarModulos();
+  }
+  $('personalizar').onclick = () => { editarModulos(!vistaBote.classList.contains('editando')); vibrar('medio'); };
+  vistaBote.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mod]');
+    if (!b) { if (vistaBote.classList.contains('editando') && e.target.closest('.modulo')) { e.preventDefault(); e.stopPropagation(); } return; }
+    e.stopPropagation();
+    const id = b.closest('.modulo').dataset.modulo, i = prefs.orden.indexOf(id);
+    if (b.dataset.mod === 'subir' && i > 0) [prefs.orden[i - 1], prefs.orden[i]] = [prefs.orden[i], prefs.orden[i - 1]];
+    else if (b.dataset.mod === 'bajar' && i < prefs.orden.length - 1) [prefs.orden[i + 1], prefs.orden[i]] = [prefs.orden[i], prefs.orden[i + 1]];
+    else if (b.dataset.mod === 'ojo') prefs.ocultos = prefs.ocultos.includes(id) ? prefs.ocultos.filter((x) => x !== id) : [...prefs.ocultos, id];
+    guardarPrefs(); aplicarModulos(); vibrar('suave');
+    b.closest('.modulo').animate([{ transform: 'scale(.97)' }, { transform: 'none' }], { duration: 250, easing: 'ease-out' });
+  }, true);
+  // Arrastrar desde el asa ⠿
+  let arrastre = null;
+  vistaBote.addEventListener('pointerdown', (e) => {
+    const asa = e.target.closest('.mod-asa'); if (!asa) return;
+    const el = asa.closest('.modulo');
+    arrastre = { el, y: e.clientY }; el.classList.add('arrastrando'); asa.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  vistaBote.addEventListener('pointermove', (e) => {
+    if (!arrastre) return;
+    const { el } = arrastre;
+    el.style.transform = `translateY(${e.clientY - arrastre.y}px)`;
+    const hermanos = [...vistaBote.querySelectorAll('.modulo')].filter((x) => x !== el);
+    for (const h of hermanos) {
+      const r = h.getBoundingClientRect(), medio = r.top + r.height / 2;
+      const antes = el.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_PRECEDING;
+      if (antes && e.clientY < medio) { const r0 = el.getBoundingClientRect().top; vistaBote.insertBefore(el, h); arrastre.y += el.getBoundingClientRect().top - r0; el.style.transform = `translateY(${e.clientY - arrastre.y}px)`; vibrar('suave'); break; }
+      if (!antes && e.clientY > medio) { const r0 = el.getBoundingClientRect().top; vistaBote.insertBefore(el, h.nextSibling); arrastre.y += el.getBoundingClientRect().top - r0; el.style.transform = `translateY(${e.clientY - arrastre.y}px)`; vibrar('suave'); break; }
+    }
+  });
+  const soltar = () => {
+    if (!arrastre) return;
+    arrastre.el.style.transform = ''; arrastre.el.classList.remove('arrastrando'); arrastre = null;
+    prefs.orden = [...vistaBote.querySelectorAll('.modulo')].map((m) => m.dataset.modulo); guardarPrefs();
+  };
+  vistaBote.addEventListener('pointerup', soltar); vistaBote.addEventListener('pointercancel', soltar);
+  aplicarModulos();
+
   irA(['bote', 'casino', 'noche', 'mesa'].includes(leer('birras-tab')) ? leer('birras-tab') : 'bote');
   if (!yo || !B.USERS.includes(yo)) { yo = null; pedirSilla(); }
   cargar();

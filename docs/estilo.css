@@ -546,3 +546,20 @@ textarea{resize:vertical;min-height:70px}
 .visor img{width:min(86vw,460px);height:min(86vw,460px);object-fit:cover;border-radius:32px;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.2)}
 .visor figcaption{font-family:var(--fr);font-weight:900;font-size:26px;color:#fff}
 .av.con-foto{cursor:zoom-in}
+
+/* ---------- Pantalla principal personalizable ---------- */
+.modulo{display:grid;gap:14px;position:relative}
+.modulo.oculto{display:none}
+.editando .modulo.oculto{display:grid;opacity:.4}
+.editando .modulo{padding:8px;border-radius:30px;border:1.5px dashed rgba(255,255,255,.4);background:rgba(255,255,255,.05);animation:menea .35s ease-in-out infinite alternate}
+.editando .modulo:nth-child(2n){animation-delay:-.17s}
+@keyframes menea{from{transform:rotate(-.35deg)}to{transform:rotate(.35deg)}}
+.editando .modulo > :not(.mod-barra){pointer-events:none}
+.modulo.arrastrando{z-index:10;animation:none;box-shadow:0 24px 60px rgba(0,0,0,.5);opacity:.95}
+.mod-barra{display:flex;align-items:center;gap:6px;padding:2px 4px 2px 8px}
+.mod-barra b{flex:1;font-size:14px}
+.mod-asa{font-size:22px;cursor:grab;touch-action:none;padding:4px 8px 4px 0;color:var(--txt2)}
+.mod-b{min-width:40px;height:36px;padding:0 10px;border-radius:99px;font-weight:800;font-size:15px;background:rgba(255,255,255,.18)}
+.personalizar{justify-self:center;padding:10px 18px;border-radius:99px;font-size:14px;font-weight:700;color:var(--txt2);background:rgba(255,255,255,.1)}
+.editando .personalizar{color:#3a1200;background:linear-gradient(160deg,#ffd257,#ff9d00)}
+@media (prefers-reduced-motion:reduce){.editando .modulo{animation:none}}

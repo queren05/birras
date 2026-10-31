@@ -26,6 +26,7 @@
 
   <!-- ===================== BOTE ===================== -->
   <section class="vista" data-vista="bote">
+    <div class="modulo" data-modulo="bote" data-nombre="El bote">
     <div class="bote glass">
       <div class="etq">El bote de la mesa</div>
       <div class="mega num" id="mega">0</div>
@@ -42,8 +43,14 @@
       </div>
     </div>
 
+    </div>
+
+    <div class="modulo" data-modulo="verguenza" data-nombre="Muro de la vergüenza">
     <div class="verguenza glass" id="verguenza" role="alert"><div class="etq">Muro de la vergüenza</div><p id="verguenzaTxt"></p></div>
 
+    </div>
+
+    <div class="modulo" data-modulo="bebidas" data-nombre="Botones para apuntar">
     <div class="modo glass" role="tablist" aria-label="Sumar o quitar">
       <button class="modo-b on" data-modo="sumar">＋ Sumar</button>
       <button class="modo-b" data-modo="quitar">－ Quitar</button>
@@ -57,12 +64,18 @@
       <button class="beber glass pulsable" data-tipo="cigarro"><span class="e">🚬</span><span class="n">Cigarro</span><span class="f">+0,2 puntos</span></button>
     </div>
 
+    </div>
+
+    <div class="modulo" data-modulo="marcador" data-nombre="Marcador">
     <div class="marcador glass">
       <div class="cab"><span class="etq">Marcador</span><span>🍺 1 · 🥃 2 · 🥂 0,5 · 🚬 0,2</span></div>
       <div id="marcador"></div>
       <div class="ley-tipos"><span><i class="t-cerveza"></i>cervezas</span><span><i class="t-cubata"></i>cubatas</span><span><i class="t-chupito"></i>chupitos</span><span><i class="t-cigarro"></i>cigarros</span></div>
     </div>
 
+    </div>
+
+    <div class="modulo" data-modulo="mio" data-nombre="Tus fichas y tu reloj">
     <div class="mio glass">
       <div class="mio-top">
         <div class="fichas"><b class="num" id="misFichas">0</b><span>fichas</span></div>
@@ -72,10 +85,15 @@
       <button class="deshacer pulsable" id="deshacer" hidden>↩︎ Deshacer</button>
     </div>
 
+    </div>
+
+    <div class="modulo" data-modulo="ultimo" data-nombre="Lo último">
     <div class="lista glass">
       <h3 class="etq">Lo último</h3>
       <div id="feedCorto"></div>
     </div>
+    </div>
+    <button class="personalizar pulsable" id="personalizar">✥ Personalizar esta pantalla</button>
   </section>
 
   <!-- ===================== CASINO ===================== -->
