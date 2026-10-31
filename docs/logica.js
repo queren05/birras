@@ -11,8 +11,8 @@
   const TOPIC_AVISOS = 'birras-avisos-f974dc3317';
   const NTFY = 'https://ntfy.sh';
 
-  const USERS = ['jorlo', 'alvaro', 'david'];
-  const NOMBRES = { jorlo: 'Jorlo', alvaro: 'Álvaro', david: 'David' };
+  const USERS = ['jorlo', 'alvaro', 'david', 'bianca', 'noelia', 'eider', 'aitor'];
+  const NOMBRES = { jorlo: 'Jorlo', alvaro: 'Álvaro', david: 'David', bianca: 'Bianca', noelia: 'Noelia', eider: 'Eider', aitor: 'Aitor' };
 
   const TIPOS = {
     cerveza: { un: 'una cerveza', nombre: 'Cerveza', plural: 'Cervezas', ico: '🍺', fichas: 10, bebida: true },
@@ -23,7 +23,7 @@
 
   const COMBO_VENTANA = 20 * 60;   // bebidas a menos de 20 min encadenan combo
   const COMBO_MAX = 5;
-  const RONDA_VENTANA = 5 * 60;    // los tres con cerveza en 5 min = RONDA
+  const RONDA_VENTANA = 5 * 60;    // 3 o más con cerveza en 5 min = RONDA
   const CLASICO_VENTANA = 5 * 60;  // birra + piti en 5 min
   const HORA_SECA = 3600;          // una hora sin cerveza = insultos
   const NOCHE_ACTIVA = 6 * 3600;   // fuera de la noche no se insulta a nadie
@@ -52,6 +52,13 @@
   }
 
   const clon = (o) => JSON.parse(JSON.stringify(o));
+
+  /* Las fotos del estado de antes de añadir gente no traen a los nuevos. */
+  function normalizar(s) {
+    const vacio = estadoInicial(s.upto || 0).users;
+    for (const u of USERS) if (!s.users[u]) s.users[u] = vacio[u];
+    return s;
+  }
 
   function premioSlot(r) {
     const s = r.map((i) => SIMBOLOS[i]);
@@ -138,11 +145,12 @@
         if (U.c.cerveza % 10 === 0) { ef.push({ k: 'logro', u, txt: `${U.c.cerveza} CERVEZAS` }); feed(s, t, u, '🏆', `${NOMBRES[u]} llega a ${U.c.cerveza} cervezas`); }
         const tot = totalGrupo(s);
         if ([50, 69, 75, 100, 150, 200, 250, 300].includes(tot)) { ef.push({ k: 'logroGrupo', n: tot }); feed(s, t, u, '🎰', `LA MESA LLEVA ${tot} CERVEZAS`); }
-        if (USERS.every((x) => s.users[x].ultEv && t - s.users[x].ultEv <= RONDA_VENTANA) && t - s.ultRonda > RONDA_VENTANA) {
+        const enRonda = USERS.filter((x) => s.users[x].ultEv && t - s.users[x].ultEv <= RONDA_VENTANA);
+        if (enRonda.length >= 3 && t - s.ultRonda > RONDA_VENTANA) {
           s.ultRonda = t; s.rondas++;
-          for (const x of USERS) s.users[x].fichas += 50 * mult();
-          ef.push({ k: 'ronda' });
-          feed(s, t, u, '🍻', `¡RONDA! +${50 * mult()} fichas para todos`);
+          for (const x of enRonda) s.users[x].fichas += 50 * mult();
+          ef.push({ k: 'ronda', n: enRonda.length });
+          feed(s, t, u, '🍻', `¡RONDA de ${enRonda.length}! +${50 * mult()} fichas para ${enRonda.map((x) => NOMBRES[x]).join(', ')}`);
         }
       }
       if ((d.t === 'cerveza' && t - U.ultCigarro <= CLASICO_VENTANA && U.ultCigarro) ||
@@ -200,6 +208,7 @@
       if (!s || snap.upto >= s.upto) s = clon(snap);
     }
     if (!s) return null;
+    normalizar(s);
     for (const m of ms) if (m.d.k !== 'snap') aplicar(s, m);
     return s;
   }
@@ -209,7 +218,7 @@
     try {
       const d = JSON.parse(m.message);
       if (!d || typeof d.k !== 'string') return null;
-      if (d.k === 'snap' && !(d.s && d.s.users && USERS.every((u) => d.s.users[u]))) return null;
+      if (d.k === 'snap' && !(d.s && d.s.users && ['jorlo', 'alvaro', 'david'].every((u) => d.s.users[u]))) return null;
       return { id: m.id, time: m.time, d };
     } catch (e) { return null; }
   }
@@ -249,7 +258,7 @@
   function secos(s, now) {
     const actividad = Math.max(...USERS.map((u) => Math.max(s.users[u].ultCerveza, s.users[u].ultBebida, s.users[u].ultCigarro)));
     if (now - actividad > NOCHE_ACTIVA) return [];
-    return USERS.filter((u) => now - s.users[u].ultCerveza > HORA_SECA && now >= s.users[u].escudo)
+    return USERS.filter((u) => (s.users[u].ultEv || s.users[u].ultBebida || s.users[u].ultCigarro) && now - s.users[u].ultCerveza > HORA_SECA && now >= s.users[u].escudo)
       .map((u) => ({ u, seg: now - s.users[u].ultCerveza }));
   }
 
@@ -261,7 +270,7 @@
   return {
     TOPIC, TOPIC_AVISOS, NTFY, USERS, NOMBRES, TIPOS, TIENDA, SIMBOLOS, SLOT_COSTE,
     COMBO_VENTANA, COMBO_MAX, HORA_SECA,
-    estadoInicial, aplicar, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
+    estadoInicial, normalizar, aplicar, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
     secos, insulto, horasTexto, clon,
   };
 });

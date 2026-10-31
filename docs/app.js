@@ -68,7 +68,7 @@
       if (!p) return;
       if (p.d.k === 'snap') {
         ultSnap = Math.max(ultSnap, m.time);
-        if (!S || p.d.s.upto > S.upto + 5) { S = B.clon(p.d.s); pintar(); }
+        if (!S || p.d.s.upto > S.upto + 5) { S = B.normalizar(B.clon(p.d.s)); pintar(); }
         return;
       }
       if (!S) return;
@@ -114,7 +114,7 @@
       const U = S.users[u], seg = Math.max(0, now - U.ultCerveza);
       return `<div class="persona glass${u === yo ? ' yo' : ''}${secos.has(u) ? ' seco' : ''}">
         <span class="av ${u}">${inicial(u)}</span>
-        <div><div class="nom">${B.NOMBRES[u]}<span class="pos">${['🥇', '🥈', '🥉'][i]}</span></div>
+        <div><div class="nom">${B.NOMBRES[u]}<span class="pos">${['🥇', '🥈', '🥉'][i] || ''}</span></div>
           <div class="det num"><span>🍺 ${U.c.cerveza}</span><span>🥃 ${U.c.cubata}</span><span>🥂 ${U.c.chupito}</span><span>🚬 ${U.c.cigarro}</span></div>
           <div class="hace${secos.has(u) ? ' mal' : ''}">${secos.has(u) ? 'Seco desde hace ' : 'Última cerveza hace '}${B.horasTexto(seg)} · ${U.fichas} fichas${U.castigos ? ` · 💀 ${U.castigos}` : ''}</div>
         </div>
@@ -327,7 +327,7 @@
       } else if (e.k === 'clasico') {
         if (mio) setTimeout(() => flotante('Combo clásico', 'birra + piti · +15'), 1150); else toast(`🍺🚬  ${quien} hace el combo clásico`);
       } else if (e.k === 'ronda') {
-        flotante('¡Ronda!', '+50 fichas para los tres'); confeti(200, ['🍻', '🍺', '🪙']); sonar('jackpot'); vibrar('fuerte');
+        flotante('¡Ronda!', `${e.n} a la vez · +50 fichas`); confeti(200, ['🍻', '🍺', '🪙']); sonar('jackpot'); vibrar('fuerte');
       } else if (e.k === 'logro') {
         setTimeout(() => { flotante('🏆 ' + e.txt.toLowerCase(), quien); confeti(120, ['🏆', '🍺']); sonar('jackpot'); }, 700);
       } else if (e.k === 'logroGrupo') {

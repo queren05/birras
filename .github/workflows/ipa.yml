@@ -73,9 +73,9 @@ jobs:
           BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
           jq -n --arg v "$VER" --arg bv "${{ github.run_number }}" --arg u "$BASE/Birras.ipa" --argjson s "$(stat -f%z out/Birras.ipa)" \
             --arg i "$BASE/icono.png" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            '{name:"Casino Birras", identifier:"es.david.birras.fuente", subtitle:"El bote de los tres", iconURL:$i, tintColor:"ffb21a",
-              apps:[{name:"Birras", bundleIdentifier:"es.david.birras", developerName:"David", subtitle:"El bote de los tres",
-                localizedDescription:"Cervezas, cubatas, chupitos y cigarros de Jorlo, Álvaro y David, con combos, tragaperras y power-ups.",
+            '{name:"Casino Birras", identifier:"es.david.birras.fuente", subtitle:"El bote de la mesa", iconURL:$i, tintColor:"ffb21a",
+              apps:[{name:"Birras", bundleIdentifier:"es.david.birras", developerName:"David", subtitle:"El bote de la mesa",
+                localizedDescription:"Cervezas, cubatas, chupitos y cigarros de Jorlo, Álvaro, David, Bianca, Noelia, Eider y Aitor, con combos, tragaperras y power-ups.",
                 iconURL:$i, tintColor:"ffb21a", category:"entertainment",
                 versions:[{version:$v, buildVersion:$bv, date:$date, downloadURL:$u, size:$s, localizedDescription:("Versión " + $v), minOSVersion:"15.0"}]}]}' > out/repo.json
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Birras para iPhone" --notes "Añade en KSign la fuente: $BASE/repo.json"

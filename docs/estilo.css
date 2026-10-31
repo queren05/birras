@@ -70,7 +70,12 @@ button:focus-visible{outline:2px solid var(--espuma);outline-offset:3px}
 .av.jorlo{background:linear-gradient(145deg,#ffcf4a,#ff7a00)}
 .av.alvaro{background:linear-gradient(145deg,#ff6ba8,#c21d6a)}
 .av.david{background:linear-gradient(145deg,#8f6bff,#3c1ec2)}
+.av.bianca{background:linear-gradient(145deg,#5ff5d2,#0d9e86)}
+.av.noelia{background:linear-gradient(145deg,#ff9a7a,#e0362c)}
+.av.eider{background:linear-gradient(145deg,#b6f06a,#3f9d1c)}
+.av.aitor{background:linear-gradient(145deg,#6fc8ff,#1665d8)}
 .c-jorlo{background:#ffa31a}.c-alvaro{background:#ff4f93}.c-david{background:#7a55ff}
+.c-bianca{background:#2fd6b4}.c-noelia{background:#ff6a4f}.c-eider{background:#7fd13b}.c-aitor{background:#3a9cff}
 
 /* ---------- Bote ---------- */
 .bote{padding:22px 20px 18px;text-align:center;overflow:hidden}
@@ -88,7 +93,7 @@ button:focus-visible{outline:2px solid var(--espuma);outline-offset:3px}
 .reparto{margin-top:16px;display:grid;gap:8px}
 .barra-rep{display:flex;height:10px;border-radius:99px;overflow:hidden;background:rgba(255,255,255,.12)}
 .barra-rep i{display:block;height:100%;transition:width .8s cubic-bezier(.2,.9,.3,1)}
-.leyenda{display:flex;justify-content:center;gap:14px;font-size:13.5px;color:var(--txt2)}
+.leyenda{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;font-size:13.5px;color:var(--txt2)}
 .leyenda span{display:inline-flex;align-items:center;gap:6px}
 .leyenda i{width:8px;height:8px;border-radius:50%}
 
