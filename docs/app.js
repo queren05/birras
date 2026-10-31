@@ -251,22 +251,22 @@
     $('marcador').innerHTML = orden.map((u, i) => {
       const U = S.users[u], p = aporte(u);
       const seg = ORDEN_VIS.map((t) => U.c[t] ? `<i class="t-${t}" style="width:${U.c[t] * B.TIPOS[t].pts / lider * 100}%"></i>` : '').join('');
-      const ic = Object.keys(B.TIPOS).filter((t) => U.c[t]).map((t) => `${B.TIPOS[t].ico} ${U.c[t]}`).join('  ') || 'sin estrenar';
+      const ic = Object.keys(B.TIPOS).filter((t) => U.c[t]).map((t) => `${B.TIPOS[t].ico}${U.c[t]}`).join(' ') || 'sin estrenar';
       return `<div class="jug${u === yo ? ' yo' : ''}${p ? '' : ' cero'}">${av(u)}
-        <div class="info"><div class="linea"><b>${B.NOMBRES[u]}</b>${i === 0 && p ? '<span class="corona">👑</span>' : ''}<span class="ic">${ic}</span></div><div class="barra">${seg}</div></div>
-        <div class="pts num">${B.fmtPts(p)}<small>🍺 puntos</small></div><div class="pts fichas-col num">${U.fichas}<small>🎰 fichas</small></div></div>`;
+        <div class="info"><div class="linea"><b>${B.NOMBRES[u]}</b>${i === 0 && p ? '<span class="corona">👑</span>' : ''}</div><div class="ic">${ic}</div><div class="barra">${seg}</div></div>
+        <div class="cifras num"><b>${B.fmtPts(p)}</b><span>${U.fichas} <i>fichas</i></span></div></div>`;
     }).join('');
     const secos = new Set(B.secos(S, now).map((x) => x.u));
     $('ranking').innerHTML = orden.map((u, i) => {
       const U = S.users[u], seg = Math.max(0, now - U.ultCerveza);
-      return `<div class="persona glass${u === yo ? ' yo' : ''}${secos.has(u) ? ' seco' : ''}" data-persona="${u}" role="button" tabindex="0" aria-label="Corregir a ${B.NOMBRES[u]}">
-        ${av(u)}
-        <div><div class="nom">${B.NOMBRES[u]}<span class="pos">${['🥇', '🥈', '🥉'][i] || ''}</span></div>
-          <div class="det num"><span>🍺 ${U.c.cerveza}</span><span>🥃 ${U.c.cubata}</span><span>🥂 ${U.c.chupito}</span><span>🚬 ${U.c.cigarro}</span>${U.c.porro ? `<span>🌿 ${U.c.porro}</span>` : ''}</div>
-          <div class="hace${secos.has(u) ? ' mal' : ''}">${secos.has(u) ? 'Seco desde hace ' : (B.principal(u) === 'cubata' ? 'Último cubata hace ' : 'Última cerveza hace ')}${B.horasTexto(seg)} · ${U.fichas} fichas${U.castigos ? ` · 💀 ${U.castigos}` : ''}</div>
-          <div class="editar">Toca para corregir</div>
-        </div>
-        <div class="tot num">${B.fmtPts(aporte(u))}<small>🍺 puntos</small><span class="tot-f">${S.users[u].fichas}<small>🎰 fichas</small></span></div>
+      const ic = Object.keys(B.TIPOS).filter((t) => U.c[t]).map((t) => `${B.TIPOS[t].ico}${U.c[t]}`).join(' ') || 'sin estrenar';
+      const estado = secos.has(u) ? `<em class="mal">Seco hace ${B.horasTexto(seg)}</em>` : `${B.principal(u) === 'cubata' ? 'Último cubata' : 'Última cerveza'} hace ${B.horasTexto(seg)}`;
+      return `<div class="persona${u === yo ? ' yo' : ''}${secos.has(u) ? ' seco' : ''}" data-persona="${u}" role="button" tabindex="0" aria-label="${B.NOMBRES[u]}: toca para corregir">
+        <span class="pos num">${i + 1}</span>${av(u)}
+        <div class="p-txt"><div class="nom">${B.NOMBRES[u]}${i < 3 && aporte(u) ? ` <span class="medalla">${['🥇', '🥈', '🥉'][i]}</span>` : ''}${U.castigos ? ` <span class="castigos">💀${U.castigos}</span>` : ''}</div>
+          <div class="det">${ic}</div><div class="hace">${estado}</div></div>
+        <div class="cifras num"><b>${B.fmtPts(aporte(u))}</b><span>${U.fichas} <i>fichas</i></span></div>
+        <span class="chevron" aria-hidden="true">›</span>
       </div>`;
     }).join('');
 
@@ -339,7 +339,7 @@
       tarjeta('Más rápido', rapido && ritmoU(rapido) ? B.NOMBRES[rapido] : '—', rapido && ritmoU(rapido) ? `${fmt1(ritmoU(rapido))} puntos por hora` : 'nadie todavía'),
       tarjeta('Mejor combo', combo && S.users[combo].maxCombo > 1 ? `x${Math.min(S.users[combo].maxCombo, B.COMBO_MAX)}` : '—', combo && S.users[combo].maxCombo > 1 ? B.NOMBRES[combo] : 'encadena dos en 20 min'),
       tarjeta('Rondas', S.rondas || 0, '3 o más con cerveza en 5 min'),
-      tarjeta('Más fumador', fuma && S.users[fuma].c.cigarro ? B.NOMBRES[fuma] : '—', fuma && S.users[fuma].c.cigarro ? `${S.users[fuma].c.cigarro} cigarros` : 'aire limpio, de momento'),
+      tarjeta('Más fumador', fuma && S.users[fuma].c.cigarro ? B.NOMBRES[fuma] : '—', fuma && S.users[fuma].c.cigarro ? `${S.users[fuma].c.cigarro} ${S.users[fuma].c.cigarro === 1 ? 'cigarro' : 'cigarros'}` : 'aire limpio, de momento'),
       tarjeta('Más seco', seco ? B.NOMBRES[seco] : '—', seco ? `seco hace ${dur(now - S.users[seco].ultCerveza)}` : 'nadie ha bebido aún'),
     ].join('');
 

@@ -41,7 +41,7 @@
       </div>
       <div class="reparto">
         <div class="barra-rep" id="barraRep"></div>
-        <div class="leyenda" id="leyenda"></div>
+        <div class="leyenda" id="leyenda" hidden></div>
       </div>
     </div>
 
@@ -188,7 +188,11 @@
   <!-- ===================== MESA ===================== -->
   <section class="vista" data-vista="mesa">
     <h1 class="titulo-vista">La mesa</h1>
-    <div id="ranking" style="display:grid;gap:12px"></div>
+    <div class="clasif glass">
+      <div class="clasif-cab"><span class="etq">Clasificación</span><span class="sub">puntos · fichas</span></div>
+      <div id="ranking"></div>
+      <p class="clasif-pie">Toca a alguien para corregir lo que lleva o cambiar su foto.</p>
+    </div>
     <div class="lista glass">
       <h3 class="etq">Todas las jugadas</h3>
       <div id="feedLargo"></div>
