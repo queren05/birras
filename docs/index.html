@@ -24,45 +24,6 @@
     <button class="icono-btn pulsable" id="sonidoBtn" aria-label="Sonido"></button>
   </header>
 
-  <!-- ===================== DIARIO ===================== -->
-  <section class="vista" data-vista="diario" id="vistaDiario">
-    <h1 class="titulo-vista">Mi diario</h1>
-    <div class="d-resumen glass" id="dResumen"></div>
-    <p class="d-sync" id="dSync">☁️ Conectando con el servidor…</p>
-    <div class="modo glass">
-      <button class="modo-b on" data-dvista="probadas">Probadas</button>
-      <button class="modo-b" data-dvista="porprobar">Quiero probar<span id="dPpN"></span></button>
-    </div>
-
-    <div id="dProbadas" class="d-bloque">
-      <div id="dRepetir" hidden>
-        <div class="etq" style="padding:2px 4px 8px">Otra igual · un toque</div>
-        <div class="rep-lista" id="dRepetirLista"></div>
-      </div>
-      <div class="buscador glass">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input id="dBuscar" type="search" placeholder="Buscar por nombre, marca, estilo…" autocomplete="off" enterkeyhint="search">
-        <button class="filtros-btn" id="dFiltrosBtn" aria-label="Filtros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span id="dFiltrosN"></span></button>
-      </div>
-      <div class="filtros glass" id="dFiltros">
-        <label>Estilo<select id="dEstilo"></select></label>
-        <label>País<select id="dPais"></select></label>
-        <label>Nota mínima<select id="dNota"><option value="0">Cualquiera</option><option value="3">★ 3 o más</option><option value="4">★ 4 o más</option><option value="4.5">★ 4,5 o más</option><option value="5">★ 5</option></select></label>
-        <label>Fecha<select id="dFecha"><option value="todo">Siempre</option><option value="hoy">Hoy</option><option value="semana">Últimos 7 días</option><option value="mes">Últimos 30 días</option><option value="ano">Último año</option></select></label>
-        <label>Ordenar<select id="dOrden"><option value="recientes">Más recientes</option><option value="nota">Mejor nota</option><option value="nombre">Nombre</option></select></label>
-        <label class="check"><input type="checkbox" id="dFav"> Solo favoritas ♥</label>
-        <button class="limpiar" id="dLimpiar" hidden>Quitar filtros</button>
-      </div>
-      <div class="d-lista" id="dLista"></div>
-    </div>
-
-    <div id="dPorProbar" class="d-bloque" hidden>
-      <button class="mas-btn pulsable" id="dPpAnadir">＋ Apuntar una para probar</button>
-      <div class="d-lista" id="dPpLista"></div>
-    </div>
-    <p class="responsable">Disfruta con moderación. Si bebes, no conduzcas. Prohibida la venta de alcohol a menores de 18 años.</p>
-  </section>
-
   <!-- ===================== BOTE ===================== -->
   <section class="vista" data-vista="bote">
     <div class="bote glass">
@@ -174,8 +135,6 @@
     <div class="per-cab"><span id="perAv"></span><div><h2 id="perNom"></h2><span class="sub" id="perSub"></span><div class="foto-acc izq"><button class="pulsable" id="miFotoBtn">📷 Cambiar foto</button></div></div></div>
     <div class="etq">Esta noche</div>
     <div class="per-stats" id="perNoche"></div>
-    <div class="etq">Tu diario</div>
-    <div class="per-stats" id="perDiario"></div>
     <div id="perJugadores" hidden>
       <div class="etq">Jugadores · solo tú puedes cambiarlos</div>
       <div class="ajustes glass jugadores">
@@ -195,10 +154,7 @@
   </div>
 </div>
 
-<button class="fab pulsable" id="fab" aria-label="Añadir cerveza"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
-
 <nav class="tabbar glass" aria-label="Secciones">
-  <button class="tab" data-tab="diario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/><path d="M9 8h6"/></svg>Diario</button>
   <button class="tab" data-tab="bote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h10v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M6 8a3 3 0 0 1 3-4 3 3 0 0 1 5 0 2.5 2.5 0 0 1 2 4"/></svg>Bote</button>
   <button class="tab" data-tab="casino"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M9 5v14M15 5v14"/><circle cx="6" cy="12" r=".8" fill="currentColor"/><circle cx="12" cy="12" r=".8" fill="currentColor"/><circle cx="18" cy="12" r=".8" fill="currentColor"/></svg>Casino</button>
   <button class="tab" data-tab="noche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><rect x="5" y="11" width="3" height="6" rx="1"/><rect x="10.5" y="6" width="3" height="11" rx="1"/><rect x="16" y="9" width="3" height="8" rx="1"/></svg>Noche</button>
@@ -223,69 +179,8 @@
   </div>
 </div>
 
-<div class="capa hoja-abajo" id="capaForm" role="dialog" aria-modal="true" aria-labelledby="fTitulo">
-  <div class="hoja glass form">
-    <div class="form-cab"><button class="txt-btn" id="fCancelar">Cancelar</button><h2 id="fTitulo">Nueva cerveza</h2><button class="txt-btn fuerte" id="fAProbar" title="Guardar en Quiero probar">📝</button></div>
-    <div class="form-cuerpo">
-      <div class="f-fila-top">
-        <button type="button" class="f-foto" id="fFoto" aria-label="Añadir foto"><span>📷<small>Foto</small></span></button>
-        <div class="f-nombre">
-          <input id="fNombre" placeholder="¿Qué cerveza es?" autocomplete="off" maxlength="80" enterkeyhint="done">
-          <span class="f-err" id="fErr-nombre"></span>
-          <div class="sugerencias" id="fSugerencias" hidden></div>
-        </div>
-      </div>
-      <button type="button" class="txt-btn peq" id="fQuitarFoto" hidden>Quitar foto</button>
-      <div class="f-nota" id="fNota"></div>
-      <span class="f-err" id="fErr-nota"></span>
-      <div class="f-estilos" id="fEstilos"></div>
-      <details id="fMasDetalles">
-        <summary>Más detalles <small>marca, graduación, país, comentario</small></summary>
-        <div class="f-grid">
-          <label>Marca<input id="fMarca" maxlength="60" autocomplete="off"></label>
-          <label>Estilo<input id="fEstilo" list="listaEstilos" maxlength="40" autocomplete="off"></label>
-          <label>Graduación (%)<input id="fAbv" inputmode="decimal" placeholder="5,4" maxlength="5"></label>
-          <label>País<input id="fPais" list="listaPaises" maxlength="40" autocomplete="off"></label>
-          <label class="ancho">Cuándo<input id="fFecha" type="datetime-local"></label>
-          <label class="ancho">Comentario<textarea id="fComentario" rows="3" maxlength="600" placeholder="¿Qué te ha parecido?"></textarea></label>
-        </div>
-        <span class="f-err" id="fErr-abv"></span>
-      </details>
-      <label class="f-bote" id="fBoteFila"><input type="checkbox" id="fBote"> Sumar también al bote de la mesa</label>
-    </div>
-    <button class="guardar pulsable" id="fGuardar">Guardar</button>
-  </div>
-</div>
-<datalist id="listaPaises"></datalist><datalist id="listaEstilos"></datalist>
-<input type="file" id="fFotoInput" accept="image/*" hidden>
-
-<div class="capa hoja-abajo" id="capaDetalle" role="dialog" aria-modal="true">
-  <div class="hoja glass detalle"><button class="cerrar-x" id="detCerrar" aria-label="Cerrar">✕</button><div id="detCuerpo"></div></div>
-</div>
-
-<div class="capa hoja-abajo" id="capaPP" role="dialog" aria-modal="true" aria-labelledby="ppT">
-  <div class="hoja glass form">
-    <div class="form-cab"><button class="txt-btn" id="ppCancelar">Cancelar</button><h2 id="ppT">Quiero probar</h2><span></span></div>
-    <div class="form-cuerpo f-grid">
-      <label class="ancho">Nombre<input id="ppNombre" maxlength="80" autocomplete="off"></label>
-      <span class="f-err ancho" id="ppErr"></span>
-      <label>Marca<input id="ppMarca" maxlength="60" autocomplete="off"></label>
-      <label>Estilo<input id="ppEstilo" list="listaEstilos" maxlength="40" autocomplete="off"></label>
-      <label class="ancho">País<input id="ppPais" list="listaPaises" maxlength="40" autocomplete="off"></label>
-      <label class="ancho">Nota para ti<input id="ppNota" maxlength="140" placeholder="Dónde la venden, quién te la recomendó…"></label>
-    </div>
-    <button class="guardar pulsable" id="ppGuardar">Apuntar</button>
-  </div>
-</div>
-
-<div class="capa edad" id="capaEdad" role="dialog" aria-modal="true" aria-labelledby="edadT">
-  <div class="hoja glass">
-    <div style="font-size:54px">🍺</div>
-    <h2 id="edadT">¿Eres mayor de edad?</h2>
-    <p class="sub" id="edadTxt">Esta app trata sobre bebidas alcohólicas. Solo pueden usarla mayores de 18 años.</p>
-    <div class="dlg-botones" id="edadBotones"><button class="dlg-no pulsable" id="edadNo">No</button><button class="dlg-si pulsable" id="edadSi">Sí, tengo 18 o más</button></div>
-    <p class="responsable">Bebe con moderación. Si bebes, no conduzcas.</p>
-  </div>
+<div class="capa visor" id="capaVisor" role="dialog" aria-modal="true" aria-label="Foto de perfil">
+  <figure><img id="visorImg" alt=""><figcaption id="visorNom"></figcaption></figure>
 </div>
 
 <div class="capa" id="capaDialogo" role="alertdialog" aria-modal="true" aria-labelledby="dlgT">
@@ -314,6 +209,5 @@
 <script src="version.js"></script>
 <script src="logica.js"></script>
 <script src="app.js"></script>
-<script type="module" src="js/main.js"></script>
 </body>
 </html>

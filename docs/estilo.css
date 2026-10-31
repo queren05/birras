@@ -539,3 +539,10 @@ textarea{resize:vertical;min-height:70px}
 .jug-quitar{padding:7px 14px;border-radius:99px;font-size:14px;font-weight:700;background:rgba(255,59,71,.3)}
 .jug-anadir{display:flex;gap:8px;margin-top:6px}
 .jug-anadir button{padding:0 18px;border-radius:14px;font-weight:800;background:linear-gradient(160deg,#ffd257,#ff9d00);color:#3a1200}
+
+/* ---------- Visor de fotos de perfil ---------- */
+.visor{background:rgba(0,0,0,.82);z-index:80;cursor:zoom-out}
+.visor figure{display:grid;gap:12px;justify-items:center;animation:sube-hoja .35s cubic-bezier(.2,1.2,.4,1)}
+.visor img{width:min(86vw,460px);height:min(86vw,460px);object-fit:cover;border-radius:32px;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.2)}
+.visor figcaption{font-family:var(--fr);font-weight:900;font-size:26px;color:#fff}
+.av.con-foto{cursor:zoom-in}

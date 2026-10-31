@@ -19,6 +19,7 @@
   function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function guardar(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } }
   const ahora = () => Date.now() / 1000 + desfase;
+  const ARRANQUE = Date.now() / 1000;   // nada anterior a abrir la app merece un aviso
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const hora = (t) => new Date(t * 1000).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const inicial = (u) => B.NOMBRES[u][0];
@@ -65,6 +66,38 @@
       return null;
     } finally { URL.revokeObjectURL(url); }
   }
+  /* Versión grande (hasta 1080 px) en el servidor de casa, para el visor. */
+  const API = 'https://servidor.tail9fb7ef.ts.net';
+  async function subirFotoGrande(file, u) {
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+      const k = Math.min(1, 1080 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      const blob = await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.82));
+      await fetch(`${API}/api/perfil/${u}`, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+    } catch (e) { /* sin servidor: el visor enseñará la miniatura */ }
+  }
+  function verFoto(u) {
+    if (!fotos[u]) return;
+    $('visorImg').src = fotos[u];               // la miniatura sale al instante…
+    $('visorNom').textContent = B.NOMBRES[u] || '';
+    $('capaVisor').classList.add('on'); vibrar('suave');
+    const grande = new Image();                  // …y se cambia por la grande en cuanto llega
+    grande.onload = () => { if ($('capaVisor').classList.contains('on')) $('visorImg').src = grande.src; };
+    grande.src = `${API}/api/perfil/${u}?v=${fotos[u].length}${fotos[u].slice(-12).replace(/[^A-Za-z0-9]/g, '')}`;
+  }
+  $('capaVisor').addEventListener('click', () => $('capaVisor').classList.remove('on'));
+  // Tocar cualquier foto de perfil la amplía (menos el botón de arriba, que abre tu perfil)
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('.av.con-foto');
+    if (!a || a.closest('#yoBtn')) return;
+    const u = [...a.classList].find((c) => B.USERS.includes(c) || fotos[c]);
+    if (!u) return;
+    e.stopPropagation(); e.preventDefault();
+    verFoto(u);
+  }, true);
   let fotoPara = null;
   function elegirFoto(u) { fotoPara = u; $('fotoInput').value = ''; $('fotoInput').click(); }
 
@@ -161,7 +194,7 @@
       if (p.d.k === 'foto') {
         if (recibirFoto(p.d)) {
           $('tienda').dataset.h = ''; pintar();
-          if (!misEids.has(p.d.eid) && p.d.por !== 'servidor' && p.d.img) toast(`📷  ${B.NOMBRES[p.d.u]} estrena foto`);
+          if (!misEids.has(p.d.eid) && p.d.por !== 'servidor' && p.d.img && m.time > ARRANQUE + desfase - 5) toast(`📷  ${B.NOMBRES[p.d.u]} estrena foto`);
         }
         return;
       }
@@ -243,7 +276,7 @@
     $('feedLargo').innerHTML = S.feed.map(fila).join('') || vacio;
 
     // Lo mío
-    if (yo && !B.USERS.includes(yo) && leer('birras-edad') === 'ok') { yo = null; guardar('birras-yo', ''); pedirSilla(); toast('Tu jugador ya no está en la mesa. Elige otro.'); }
+    if (yo && !B.USERS.includes(yo)) { yo = null; guardar('birras-yo', ''); pedirSilla(); toast('Tu jugador ya no está en la mesa. Elige otro.'); }
     if (!yo || !S.users[yo]) return;
     const U = S.users[yo];
     $('yoAv').outerHTML = av(yo).replace('<span ', '<span id="yoAv" ');
@@ -499,6 +532,7 @@
     if (!img) return toast('No se ha podido leer esa imagen. Prueba con otra.');
     recibirFoto({ u, img }); pintar(); if ($('capaFix').classList.contains('on')) pintarFix();
     publicar({ k: 'foto', u, img, por: yo });
+    subirFotoGrande(f, u);
     flotante('📷', `nueva foto de ${B.NOMBRES[u]}`); sonar('compra'); vibrar('medio');
   });
   $('miFotoBtn').onclick = () => { if (!yo) return pedirSilla(); elegirFoto(yo); };
@@ -540,9 +574,6 @@
       $('perNoche').innerHTML = st(B.fmtPts(B.puntos(U)), 'puntos') + st(U.c.cerveza, 'cervezas') + st(U.c.cubata, 'cubatas') + st(U.c.chupito, 'chupitos') + st(U.c.cigarro, 'cigarros') +
         st(U.maxCombo > 1 ? 'x' + Math.min(U.maxCombo, B.COMBO_MAX) : '—', 'mejor combo') + st(U.castigos || 0, 'castigos 💀') + st(B.horasTexto(Math.max(0, ahora() - U.ultCerveza)), 'desde la última');
     } else { $('perSub').textContent = 'Conectando con la mesa…'; $('perNoche').innerHTML = ''; }
-    const D = window.BirrasDiario && window.BirrasDiario.resumen();
-    $('perDiario').innerHTML = D ? st(D.total, 'registradas') + st(D.distintas, 'distintas') + st(D.paises, 'países') + st(D.media ? D.media.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' ★' : '—', 'nota media') +
-      st(D.estilo || '—', 'estilo favorito') + st(D.favoritas, 'favoritas') : '<div class="vacio">Cargando…</div>';
     $('sonidoVal').textContent = sonido ? 'Sí' : 'No';
     const admin = yo === B.ADMIN;
     $('perJugadores').hidden = !admin;
@@ -812,17 +843,8 @@
     sumarAlBote: () => { if (!yo) return; apuntar(yo, 'cerveza', 1); sonar('moneda'); vibrar('medio'); },
   };
 
-  /* Aviso de mayoría de edad (una vez por móvil). */
-  if (leer('birras-edad') !== 'ok') $('capaEdad').classList.add('on');
-  $('edadSi').onclick = () => { guardar('birras-edad', 'ok'); $('capaEdad').classList.remove('on'); vibrar('suave'); if (!yo) pedirSilla(); };
-  $('edadNo').onclick = () => {
-    $('edadT').textContent = 'Vuelve cuando cumplas 18';
-    $('edadTxt').textContent = 'Esta app no es para menores de edad.';
-    $('edadBotones').hidden = true;
-  };
-
-  irA(['diario', 'bote', 'casino', 'noche', 'mesa'].includes(leer('birras-tab')) ? leer('birras-tab') : 'diario');
-  if ((!yo || !B.USERS.includes(yo)) && leer('birras-edad') === 'ok') { yo = null; pedirSilla(); } else if (!B.USERS.includes(yo)) yo = null;
+  irA(['bote', 'casino', 'noche', 'mesa'].includes(leer('birras-tab')) ? leer('birras-tab') : 'bote');
+  if (!yo || !B.USERS.includes(yo)) { yo = null; pedirSilla(); }
   cargar();
   setTimeout(() => $('capaCarga').classList.add('fuera'), 2500);   // el diario no depende de la red
   setInterval(tic, 1000);

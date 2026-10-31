@@ -17,11 +17,13 @@ from urllib.parse import urlparse, parse_qs
 DIR = os.environ.get('STATE_DIRECTORY', '/var/lib/birras')
 DB = os.path.join(DIR, 'diario.sqlite')
 FOTOS = os.path.join(DIR, 'fotos-diario')
+PERFILES = os.path.join(DIR, 'perfiles')   # foto de perfil a tamaño grande (en ntfy solo cabe la miniatura)
 ID_JUGADOR = re.compile(r'^[a-z0-9]{2,16}$')   # la lista de jugadores la gestiona la app
 ORIGENES = {'https://queren05.github.io', 'capacitor://localhost', 'http://localhost', 'https://localhost', 'http://127.0.0.1:8933'}
 ID = re.compile(r'^[A-Za-z0-9-]{8,64}$')
 MAX_JSON, MAX_FOTO = 16 * 1024, 3 * 1024 * 1024
 os.makedirs(FOTOS, exist_ok=True)
+os.makedirs(PERFILES, exist_ok=True)
 bloqueo = threading.Lock()
 
 def conectar():
@@ -101,6 +103,11 @@ class API(BaseHTTPRequestHandler):
                 d = json.loads(datos); d['id'] = i; d['u'] = u
                 out['cervezas' if tabla == 'cervezas' else 'porProbar'].append(d)
             return self.responder(200, out)
+        m = re.fullmatch(r'/api/perfil/([a-z0-9]+)', p.path)
+        if m and ID_JUGADOR.match(m.group(1)):
+            f = os.path.join(PERFILES, m.group(1) + '.jpg')
+            if not os.path.exists(f): return self.responder(404, {'error': 'sin foto'})
+            with open(f, 'rb') as fh: return self.responder(200, tipo='image/jpeg', cuerpo=fh.read(), cache='public, max-age=300')
         m = re.fullmatch(r'/api/fotos/([A-Za-z0-9-]+)', p.path)
         if m and ID.match(m.group(1)):
             f = os.path.join(FOTOS, m.group(1) + '.jpg')
@@ -125,6 +132,14 @@ class API(BaseHTTPRequestHandler):
                     if ant and ant[0] > o['editado']: return self.responder(409, {'error': 'hay una versión más nueva'})
                     c.execute('INSERT OR REPLACE INTO fichas (tabla, id, u, datos, editado, borrado) VALUES (?,?,?,?,?,0)',
                               (tabla, m.group(2), u, json.dumps(o, ensure_ascii=False), o['editado']))
+                return self.responder(200, {'ok': True})
+            m = re.fullmatch(r'/api/perfil/([a-z0-9]+)', p.path)
+            if m and ID_JUGADOR.match(m.group(1)):
+                cuerpo = self.leer(MAX_FOTO)
+                if not cuerpo.startswith(b'\xff\xd8'): return self.responder(400, {'error': 'solo JPEG'})
+                tmp = os.path.join(PERFILES, m.group(1) + '.tmp')
+                with open(tmp, 'wb') as fh: fh.write(cuerpo)
+                os.replace(tmp, os.path.join(PERFILES, m.group(1) + '.jpg'))
                 return self.responder(200, {'ok': True})
             m = re.fullmatch(r'/api/fotos/([A-Za-z0-9-]+)', p.path)
             if m and ID.match(m.group(1)):
