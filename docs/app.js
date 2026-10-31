@@ -851,6 +851,22 @@
     sumarAlBote: () => { if (!yo) return; apuntar(yo, 'cerveza', 1); sonar('moneda'); vibrar('medio'); },
   };
 
+  /* ================= Tipografías (cada móvil la suya) ================= */
+  const LETRAS = [
+    ['sistema', 'Sistema', 'ui-rounded,-apple-system,system-ui'], ['moderna', 'Moderna', 'Outfit'], ['cartel', 'Cartel', 'Bungee'],
+    ['elegante', 'Elegante', 'Fraunces'], ['titular', 'Titular', '"Bebas Neue"'], ['retro', 'Retro', 'Pacifico'],
+    ['maquina', 'Máquina', '"Space Mono"'], ['comic', 'Cómic', '"Comic Neue"'],
+  ];
+  function ponerLetra(l) {
+    if (l === 'sistema') delete document.documentElement.dataset.letra; else document.documentElement.dataset.letra = l;
+    guardar('birras-letra', l);
+    $('letraTxt').textContent = `${LETRAS.find((x) => x[0] === l)[1]} · solo cambia en tu móvil`;
+    $('letras').innerHTML = LETRAS.map(([k, n, f]) => `<button class="letra pulsable${k === l ? ' on' : ''}" data-letra="${k}" style="font-family:${f.replace(/"/g, '&quot;')}">Aa<small>${n}</small></button>`).join('');
+    if (S) { $('tienda').dataset.h = ''; pintar(); }
+  }
+  $('letras').addEventListener('click', (e) => { const b = e.target.closest('[data-letra]'); if (b) { ponerLetra(b.dataset.letra); vibrar('suave'); } });
+  ponerLetra(LETRAS.some((x) => x[0] === leer('birras-letra')) ? leer('birras-letra') : 'sistema');
+
   /* ================= Pantalla principal personalizable =================
    * Cada bloque del Bote es un módulo: se puede subir, bajar (o arrastrar) y ocultar.
    * El orden se guarda en este móvil (cada uno se lo monta a su gusto). */

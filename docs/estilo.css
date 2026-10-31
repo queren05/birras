@@ -1,3 +1,15 @@
+@font-face{font-family:"Outfit";src:url("fuentes/outfit-400.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Outfit";src:url("fuentes/outfit-700.woff2") format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Outfit";src:url("fuentes/outfit-900.woff2") format("woff2");font-weight:900;font-display:swap}
+@font-face{font-family:"Bungee";src:url("fuentes/bungee-400.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Fraunces";src:url("fuentes/fraunces-700.woff2") format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Fraunces";src:url("fuentes/fraunces-900.woff2") format("woff2");font-weight:900;font-display:swap}
+@font-face{font-family:"Pacifico";src:url("fuentes/pacifico-400.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Space Mono";src:url("fuentes/space-400.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Space Mono";src:url("fuentes/space-700.woff2") format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Comic Neue";src:url("fuentes/comic-400.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Comic Neue";src:url("fuentes/comic-700.woff2") format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Bebas Neue";src:url("fuentes/bebas-400.woff2") format("woff2");font-weight:400;font-display:swap}
 /* Casino Birras · Liquid Glass
    Cristal = fondo vivo detrás + desenfoque saturado + borde especular + brillo interior. */
 :root{
@@ -8,7 +20,8 @@
   --vidrio:rgba(255,255,255,.12); --vidrio2:rgba(255,255,255,.2);
   --borde:rgba(255,255,255,.38); --sombra:0 18px 50px rgba(20,0,10,.45);
   --r:30px;
-  --f: -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;
+  --f0: -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;
+  --f: var(--f0);
   --fr: ui-rounded,"SF Pro Rounded",-apple-system,"Nunito","Segoe UI",system-ui,sans-serif;
   --safe-t:env(safe-area-inset-top); --safe-b:env(safe-area-inset-bottom);
   /* tema (Birra por defecto) */
@@ -570,3 +583,21 @@ html{-webkit-overflow-scrolling:touch}
 .fondo .b1,.fondo .b2,.fondo .b3,.fondo .b4{animation-duration:40s}
 .vista:not(.on){content-visibility:hidden}
 .pulsable{will-change:transform}
+
+/* ---------- Tipografías (cada móvil la suya) ---------- */
+[data-letra="moderna"]{--fr:"Outfit",var(--f0);--f:"Outfit",var(--f0)}
+[data-letra="cartel"]{--fr:"Bungee",var(--f0)}
+[data-letra="elegante"]{--fr:"Fraunces",Georgia,serif}
+[data-letra="titular"]{--fr:"Bebas Neue",var(--f0)}
+[data-letra="retro"]{--fr:"Pacifico",var(--f0)}
+[data-letra="maquina"]{--fr:"Space Mono",ui-monospace,monospace;--f:"Space Mono",ui-monospace,monospace}
+[data-letra="comic"]{--fr:"Comic Neue",var(--f0);--f:"Comic Neue",var(--f0)}
+/* Las de un solo grosor no se «engordan» de mentira */
+[data-letra="cartel"],[data-letra="titular"],[data-letra="retro"]{font-synthesis:none}
+[data-letra="titular"] .mega,[data-letra="titular"] .flotante{letter-spacing:0}
+[data-letra="titular"] .titulo-vista,[data-letra="titular"] .per-cab h2{letter-spacing:.02em}
+.letras{display:flex;gap:8px;flex-wrap:wrap;padding:4px 12px 12px 52px}
+.letra{min-width:62px;height:52px;padding:0 10px;border-radius:16px;display:grid;place-items:center;font-size:21px;background:rgba(255,255,255,.12);border:2px solid transparent;line-height:1}
+.letra small{display:block;font-family:var(--f0);font-size:10px;color:var(--txt2);margin-top:2px}
+.letra.on{border-color:var(--txt);background:rgba(255,255,255,.22)}
+[data-tema="claro"] .letra{background:rgba(120,60,0,.07)}
