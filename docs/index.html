@@ -58,10 +58,10 @@
       <button class="modo-b" data-modo="quitar">－ Quitar</button>
     </div>
     <div class="bebidas" id="bebidas">
-      <button class="beber cerveza glass pulsable" data-tipo="cerveza">
-        <span class="e">🍺</span><span><span class="n">Una cerveza</span><br><span class="f" id="fCerveza">+1 punto · +10 fichas</span></span><span class="mas">+</span>
+      <button class="beber cerveza glass pulsable" data-tipo="cerveza" id="btnPrincipal">
+        <span class="e" id="btnPrincipalE">🍺</span><span><span class="n" id="btnPrincipalN">Una cerveza</span><br><span class="f" id="fCerveza">+1 punto · +10 fichas</span></span><span class="mas">+</span>
       </button>
-      <button class="beber glass pulsable" data-tipo="cubata"><span class="e">🥃</span><span class="n">Cubata</span><span class="f">+2 pts</span></button>
+      <button class="beber glass pulsable" data-tipo="cubata" id="btnSecundario"><span class="e">🥃</span><span class="n">Cubata</span><span class="f">+2 pts</span></button>
       <button class="beber glass pulsable" data-tipo="chupito"><span class="e">🥂</span><span class="n">Chupito</span><span class="f">+0,5 pts</span></button>
       <button class="beber glass pulsable" data-tipo="cigarro"><span class="e">🚬</span><span class="n">Cigarro</span><span class="f">+0,2 pts</span></button>
       <button class="beber glass pulsable" data-tipo="porro"><span class="e">🌿</span><span class="n">Porro</span><span class="f">+2,5 pts</span></button>
@@ -171,6 +171,7 @@
       <div class="temas" id="temas"></div>
       <div class="fila-aj" style="padding-bottom:6px"><span class="e">🔤</span><div><b>Tipografía</b><small id="letraTxt">Solo cambia en tu móvil</small></div></div>
       <div class="letras" id="letras"></div>
+      <button class="fila-aj" id="sinCervezaFila"><span class="e">🥃</span><div><b>No bebo cerveza</b><small>Te cuentan los cubatas: reloj de insultos, rondas y logros</small></div><span class="val" id="sinCervezaVal"></span></button>
       <button class="fila-aj" id="sonidoFila"><span class="e">🔊</span><div><b>Sonido</b><small>Efectos al apuntar, combos y casino</small></div><span class="val" id="sonidoVal"></span></button>
     </div>
     <p class="responsable">Para cambiar de jugador ve a la pestaña Mesa.</p>

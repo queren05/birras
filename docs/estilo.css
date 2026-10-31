@@ -610,3 +610,11 @@ html{-webkit-overflow-scrolling:touch}
 
 .marcador .cab{flex-wrap:wrap;gap:2px 10px}
 .marcador .cab span:last-child{font-size:11.5px;white-space:nowrap}
+
+.jug-sc{padding:7px 10px;border-radius:99px;font-size:13px;font-weight:700;background:rgba(255,255,255,.12);white-space:nowrap}
+.jug-sc.on{background:linear-gradient(160deg,rgba(194,70,46,.8),rgba(140,40,20,.7));color:#fff}
+
+/* Puntos de alcohol y fichas del casino, uno al lado del otro */
+.jug{grid-template-columns:auto 1fr auto auto}
+.jug .fichas-col{min-width:46px;font-size:17px;color:var(--ambar);padding-left:8px;border-left:1px solid rgba(255,255,255,.12)}
+.persona .tot .tot-f{display:block;margin-top:6px;font-size:18px;color:var(--ambar)}

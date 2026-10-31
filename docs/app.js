@@ -254,7 +254,7 @@
       const ic = Object.keys(B.TIPOS).filter((t) => U.c[t]).map((t) => `${B.TIPOS[t].ico} ${U.c[t]}`).join('  ') || 'sin estrenar';
       return `<div class="jug${u === yo ? ' yo' : ''}${p ? '' : ' cero'}">${av(u)}
         <div class="info"><div class="linea"><b>${B.NOMBRES[u]}</b>${i === 0 && p ? '<span class="corona">👑</span>' : ''}<span class="ic">${ic}</span></div><div class="barra">${seg}</div></div>
-        <div class="pts num">${B.fmtPts(p)}<small>puntos</small></div></div>`;
+        <div class="pts num">${B.fmtPts(p)}<small>🍺 puntos</small></div><div class="pts fichas-col num">${U.fichas}<small>🎰 fichas</small></div></div>`;
     }).join('');
     const secos = new Set(B.secos(S, now).map((x) => x.u));
     $('ranking').innerHTML = orden.map((u, i) => {
@@ -263,10 +263,10 @@
         ${av(u)}
         <div><div class="nom">${B.NOMBRES[u]}<span class="pos">${['🥇', '🥈', '🥉'][i] || ''}</span></div>
           <div class="det num"><span>🍺 ${U.c.cerveza}</span><span>🥃 ${U.c.cubata}</span><span>🥂 ${U.c.chupito}</span><span>🚬 ${U.c.cigarro}</span>${U.c.porro ? `<span>🌿 ${U.c.porro}</span>` : ''}</div>
-          <div class="hace${secos.has(u) ? ' mal' : ''}">${secos.has(u) ? 'Seco desde hace ' : 'Última cerveza hace '}${B.horasTexto(seg)} · ${U.fichas} fichas${U.castigos ? ` · 💀 ${U.castigos}` : ''}</div>
+          <div class="hace${secos.has(u) ? ' mal' : ''}">${secos.has(u) ? 'Seco desde hace ' : (B.principal(u) === 'cubata' ? 'Último cubata hace ' : 'Última cerveza hace ')}${B.horasTexto(seg)} · ${U.fichas} fichas${U.castigos ? ` · 💀 ${U.castigos}` : ''}</div>
           <div class="editar">Toca para corregir</div>
         </div>
-        <div class="tot num">${B.fmtPts(aporte(u))}<small>puntos</small></div>
+        <div class="tot num">${B.fmtPts(aporte(u))}<small>🍺 puntos</small><span class="tot-f">${S.users[u].fichas}<small>🎰 fichas</small></span></div>
       </div>`;
     }).join('');
 
@@ -286,7 +286,15 @@
     $('misFichas').textContent = U.fichas;
     const enCombo = now - U.ultBebida <= B.COMBO_VENTANA && U.combo >= 1;
     const sigMult = enCombo ? Math.min(U.combo + 1, B.COMBO_MAX) : 1;
-    $('fCerveza').textContent = `+1 punto · +${10 * sigMult * (now < S.happy ? 2 : 1) * (U.racha ? 2 : 1)} fichas${sigMult > 1 ? ` · combo x${sigMult}` : ''}`;
+    // El botón grande es tu bebida principal (cubata para quien no bebe cerveza)
+    const pr = B.principal(yo), sec = pr === 'cubata' ? 'cerveza' : 'cubata', TP = B.TIPOS[pr], TS = B.TIPOS[sec];
+    if ($('btnPrincipal').dataset.tipo !== pr) {
+      $('btnPrincipal').dataset.tipo = pr; $('btnPrincipalE').textContent = TP.ico;
+      $('btnPrincipalN').textContent = TP.un.charAt(0).toUpperCase() + TP.un.slice(1);
+      $('btnSecundario').dataset.tipo = sec;
+      $('btnSecundario').innerHTML = `<span class="e">${TS.ico}</span><span class="n">${TS.nombre}</span><span class="f">+${String(TS.pts).replace('.', ',')} pts</span>`;
+    }
+    $('fCerveza').textContent = `+${String(TP.pts).replace('.', ',')} punto${TP.pts === 1 ? '' : 's'} · +${TP.fichas * sigMult * (now < S.happy ? 2 : 1) * (U.racha ? 2 : 1)} fichas${sigMult > 1 ? ` · combo x${sigMult}` : ''}`;
     $('pills').innerHTML = [
       enCombo && U.combo >= 2 ? `<span class="pill combo">Combo x${Math.min(U.combo, B.COMBO_MAX)} · ${Math.ceil((B.COMBO_VENTANA - (now - U.ultBebida)) / 60)} min</span>` : '',
       U.racha ? `<span class="pill racha">🔥 x2 · ${U.racha}</span>` : '',
@@ -331,7 +339,7 @@
       tarjeta('Mejor combo', combo && S.users[combo].maxCombo > 1 ? `x${Math.min(S.users[combo].maxCombo, B.COMBO_MAX)}` : '—', combo && S.users[combo].maxCombo > 1 ? B.NOMBRES[combo] : 'encadena dos en 20 min'),
       tarjeta('Rondas', S.rondas || 0, '3 o más con cerveza en 5 min'),
       tarjeta('Más fumador', fuma && S.users[fuma].c.cigarro ? B.NOMBRES[fuma] : '—', fuma && S.users[fuma].c.cigarro ? `${S.users[fuma].c.cigarro} cigarros` : 'aire limpio, de momento'),
-      tarjeta('Más seco', seco ? B.NOMBRES[seco] : '—', seco ? `sin cerveza hace ${dur(now - S.users[seco].ultCerveza)}` : 'nadie ha bebido aún'),
+      tarjeta('Más seco', seco ? B.NOMBRES[seco] : '—', seco ? `seco hace ${dur(now - S.users[seco].ultCerveza)}` : 'nadie ha bebido aún'),
     ].join('');
 
     const fecha = (t) => new Date(t * 1000).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -418,7 +426,8 @@
       const U = S.users[yo], seg = Math.max(0, now - U.ultCerveza);
       const mal = seg > B.HORA_SECA;
       $('reloj').classList.toggle('mal', mal);
-      $('relojTxt').textContent = mal ? `Llevas ${B.horasTexto(seg)} sin cerveza. Inaceptable.` : `Tu última cerveza: hace ${B.horasTexto(seg)} · insultos en ${B.horasTexto(B.HORA_SECA - seg)}`;
+      const cubatas = B.principal(yo) === 'cubata';
+      $('relojTxt').textContent = mal ? `Llevas ${B.horasTexto(seg)} sin ${cubatas ? 'un cubata' : 'cerveza'}. Inaceptable.` : `${cubatas ? 'Tu último cubata' : 'Tu última cerveza'}: hace ${B.horasTexto(seg)} · insultos en ${B.horasTexto(B.HORA_SECA - seg)}`;
       $('relojBarra').style.width = Math.min(100, seg / B.HORA_SECA * 100) + '%';
       const meToca = secos.find((x) => x.u === yo);
       if (meToca && now > broncaHasta) {
@@ -551,7 +560,7 @@
     preguntar('Doble o nada', `Te juegas tus ${f} fichas. Si ganas, ${f * 2}. Si pierdes, cero.`, 'Me la juego', true)
       .then((si) => { if (si) publicar({ k: 'doble', u: yo, gana: Math.random() < 0.47 }); });
   };
-  $('broncaYa').onclick = () => { $('capaBronca').classList.remove('on'); apuntar(yo, 'cerveza', 1); sonar('moneda'); vibrar('medio'); };
+  $('broncaYa').onclick = () => { $('capaBronca').classList.remove('on'); apuntar(yo, B.principal(yo), 1); sonar('moneda'); vibrar('medio'); };
   $('broncaLuego').onclick = () => { $('capaBronca').classList.remove('on'); broncaHasta = ahora() + 300; };
   $('yoBtn').onclick = () => (yo ? abrirPerfil() : pedirSilla());
   $('cambiarBtn').onclick = async () => {
@@ -576,11 +585,14 @@
         st(U.maxCombo > 1 ? 'x' + Math.min(U.maxCombo, B.COMBO_MAX) : '—', 'mejor combo') + st(U.castigos || 0, 'castigos 💀') + st(B.horasTexto(Math.max(0, ahora() - U.ultCerveza)), 'desde la última');
     } else { $('perSub').textContent = 'Conectando con la mesa…'; $('perNoche').innerHTML = ''; }
     $('sonidoVal').textContent = sonido ? 'Sí' : 'No';
+    $('sinCervezaVal').textContent = B.principal(yo) === 'cubata' ? 'Sí' : 'No';
     const admin = yo === B.ADMIN;
     $('perJugadores').hidden = !admin;
-    if (admin) $('jugLista').innerHTML = B.USERS.map((u) => `<div class="jug-fila">${av(u)}<b>${esc(B.NOMBRES[u])}</b>${u === B.ADMIN ? '<span class="sub">administrador</span>' : `<button class="pulsable jug-quitar" data-baja="${u}">Quitar</button>`}</div>`).join('');
+    if (admin) $('jugLista').innerHTML = B.USERS.map((u) => `<div class="jug-fila">${av(u)}<b>${esc(B.NOMBRES[u])}</b><button class="pulsable jug-sc${B.principal(u) === 'cubata' ? ' on' : ''}" data-sc="${u}" title="No bebe cerveza (le cuentan los cubatas)">${B.principal(u) === 'cubata' ? '🥃 Cubatas' : '🍺 Cerveza'}</button>${u === B.ADMIN ? '' : `<button class="pulsable jug-quitar" data-baja="${u}">Quitar</button>`}</div>`).join('');
   }
   $('jugLista').addEventListener('click', async (e) => {
+    const sc = e.target.closest('[data-sc]');
+    if (sc && yo === B.ADMIN) { publicar({ k: 'pref', u: sc.dataset.sc, sinCerveza: B.principal(sc.dataset.sc) !== 'cubata', por: B.ADMIN }); vibrar('suave'); return; }
     const b = e.target.closest('[data-baja]'); if (!b || yo !== B.ADMIN) return;
     const u = b.dataset.baja;
     if (!await preguntar(`¿Quitar a ${B.NOMBRES[u]}?`, 'Desaparece de la mesa, del bote y de la clasificación. Sus datos se guardan: si la vuelves a añadir con el mismo nombre, recupera lo suyo.', 'Quitar', true)) return;
@@ -596,6 +608,11 @@
     $('jugNombre').value = '';
     vibrar('medio'); sonar('compra');
   });
+  $('sinCervezaFila').onclick = () => {
+    if (!yo) return;
+    publicar({ k: 'pref', u: yo, sinCerveza: B.principal(yo) !== 'cubata', por: yo });
+    vibrar('medio');
+  };
   $('sonidoFila').onclick = () => { sonido = !sonido; guardar('birras-sonido', sonido ? 'si' : 'no'); iconoSonido(); pintarPerfil(); };
   const iconoSonido = () => { $('sonidoBtn').innerHTML = sonido
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>'
@@ -691,7 +708,9 @@
   function animar(efectos, mio) {
     for (const e of efectos) {
       const quien = B.NOMBRES[e.u] || '';
-      if (e.k === 'jugador') {
+      if (e.k === 'pref') {
+        toast(B.principal(e.u) === 'cubata' ? `🥃  A ${B.NOMBRES[e.u]} le cuentan los cubatas` : `🍺  ${B.NOMBRES[e.u]} vuelve a la cerveza`);
+      } else if (e.k === 'jugador') {
         toast(e.op === 'alta' ? `🪑  ${B.NOMBRES[e.id]} se sienta en la mesa` : '👋  Un jugador se ha levantado de la mesa');
         $('tienda').dataset.h = '';
       } else if (e.k === 'noche') {

@@ -19,7 +19,12 @@
   const USERS = BASE.map((x) => x[0]);
   const NOMBRES = Object.fromEntries(BASE);
   const ID_JUGADOR = /^[a-z0-9]{2,16}$/;
+  const SIN_CERVEZA = new Set();
+  /* Bebida que cuenta para el reloj de la vergüenza, las rondas y los logros. */
+  const principal = (u) => (SIN_CERVEZA.has(u) ? 'cubata' : 'cerveza');
   function aplicarMesa(s) {
+    s.sinCerveza = Array.isArray(s.sinCerveza) ? s.sinCerveza : [];
+    SIN_CERVEZA.clear(); s.sinCerveza.forEach((u) => SIN_CERVEZA.add(u));
     s.extra = s.extra && typeof s.extra === 'object' ? s.extra : {};
     s.bajas = Array.isArray(s.bajas) ? s.bajas : [];
     const lista = [...BASE.map((x) => x[0]), ...Object.keys(s.extra).filter((k) => !BASE.some((b) => b[0] === k))].filter((u) => !s.bajas.includes(u));
@@ -65,7 +70,7 @@
         combo: 0, maxCombo: 0, racha: 0, escudo: 0, castigos: 0,
       };
     }
-    return { v: 1, users, extra: {}, bajas: [], happy: 0, rondas: 0, ultRonda: 0, diana: null, feed: [], upto: 0, ids: [], t0: 0, hist: {}, noches: [] };
+    return { v: 1, users, extra: {}, bajas: [], sinCerveza: [], happy: 0, rondas: 0, ultRonda: 0, diana: null, feed: [], upto: 0, ids: [], t0: 0, hist: {}, noches: [] };
   }
 
   const clon = (o) => JSON.parse(JSON.stringify(o));
@@ -74,10 +79,11 @@
   function normalizar(s) {
     aplicarMesa(s);
     const vacio = estadoInicial(0);
-    for (const u of USERS) {
+    for (const u of new Set([...USERS, ...Object.keys(s.users)])) {
       const U = s.users[u];
       if (!U) { s.users[u] = estadoInicial(s.upto || 0).users[u]; continue; }
-      s.users[u] = Object.assign({}, vacio.users[u], U, { c: Object.assign({}, vacio.users[u].c, U.c), hc: Array.isArray(U.hc) ? U.hc : [], gan: U.gan && typeof U.gan === 'object' ? U.gan : {} });
+      const base = vacio.users[u] || vacio.users[USERS[0]];   // los dados de baja no están en la mesa
+      s.users[u] = Object.assign({}, base, U, { c: Object.assign({}, base.c, U.c), hc: Array.isArray(U.hc) ? U.hc : [], gan: U.gan && typeof U.gan === 'object' ? U.gan : {} });
     }
     for (const k of ['happy', 'rondas', 'ultRonda', 'upto', 't0']) if (s[k] == null) s[k] = 0;
     if (!s.hist) s.hist = {};
@@ -165,9 +171,9 @@
       const U = o.users[u];
       for (const t of Object.keys(U.c)) if (!U.c[t]) delete U.c[t];
       for (const k of Object.keys(U)) if (U[k] === 0) delete U[k];
-      if (!U.hc.length) delete U.hc;
-      for (const t of Object.keys(U.gan)) if (!U.gan[t].length) delete U.gan[t];
-      if (!Object.keys(U.gan).length) delete U.gan;
+      if (!Array.isArray(U.hc) || !U.hc.length) delete U.hc;
+      if (U.gan && typeof U.gan === 'object') { for (const t of Object.keys(U.gan)) if (!Array.isArray(U.gan[t]) || !U.gan[t].length) delete U.gan[t]; }
+      if (!U.gan || !Object.keys(U.gan).length) delete U.gan;
     }
     for (const f of o.feed) delete f.u;
     o.feed = o.feed.slice(0, 12);
@@ -202,8 +208,8 @@
           // Se quitan las fichas que dio esa consumición (con su combo), no solo las básicas.
           const g = U.gan[d.t] && U.gan[d.t].length ? U.gan[d.t].pop() : T.fichas;
           U.fichas = Math.max(0, U.fichas - g);
-          if (d.t === 'cerveza') {
-            // La «última cerveza» vuelve a ser la anterior de verdad.
+          if (d.t === principal(u)) {
+            // La «última cerveza» (o cubata) vuelve a ser la anterior de verdad.
             if (U.hc.length) U.hc.pop();
             U.ultCerveza = U.hc.length ? U.hc[U.hc.length - 1] : (U.baseCerveza || U.ultCerveza);
             U.ultEv = U.hc.length ? U.hc[U.hc.length - 1] : 0;
@@ -217,7 +223,7 @@
       if (d.fix) {   // corrección o deshacer: suma sin combos ni fichas extra y sin cambiar la hora de la última
         U.c[d.t]++; U.fichas += T.fichas; histo(s, t, d.t, 1);
         apilar(U, d.t, T.fichas);
-        if (d.t === 'cerveza') { if (!U.hc.length) U.baseCerveza = U.ultCerveza; U.hc.push(U.ultCerveza); U.hc = U.hc.slice(-5); }
+        if (d.t === principal(u)) { if (!U.hc.length) U.baseCerveza = U.ultCerveza; U.hc.push(U.ultCerveza); U.hc = U.hc.slice(-5); }
         s.t0 = s.t0 || t; U.primera = U.primera || t;
         feed(s, t, u, '✏️', d.deshacer ? `${quien} deshace: +1 ${T.nombre.toLowerCase()}${aOtro}` : `${quien} corrige: +1 ${T.nombre.toLowerCase()}${aOtro}`);
         ef.push({ k: 'corrige', u, t: d.t });
@@ -242,12 +248,14 @@
       feed(s, t, u, T.ico, `${NOMBRES[u]} +1 ${T.nombre.toLowerCase()}${m > 1 ? ` (x${m})` : ''} · +${ganadas}`);
 
       if (d.t === 'cerveza') {
+        const tot = totalGrupo(s);
+        if ([50, 69, 75, 100, 150, 200, 250, 300].includes(tot)) { ef.push({ k: 'logroGrupo', n: tot }); feed(s, t, u, '🎰', `LA MESA LLEVA ${tot} CERVEZAS`); }
+      }
+      if (d.t === principal(u)) {   // cerveza, o cubata para quien no bebe cerveza
         if (!U.hc.length) U.baseCerveza = U.ultCerveza;
         U.hc.push(t); U.hc = U.hc.slice(-5);
         U.ultCerveza = t; U.ultEv = t;
-        if (U.c.cerveza % 10 === 0) { ef.push({ k: 'logro', u, txt: `${U.c.cerveza} CERVEZAS` }); feed(s, t, u, '🏆', `${NOMBRES[u]} llega a ${U.c.cerveza} cervezas`); }
-        const tot = totalGrupo(s);
-        if ([50, 69, 75, 100, 150, 200, 250, 300].includes(tot)) { ef.push({ k: 'logroGrupo', n: tot }); feed(s, t, u, '🎰', `LA MESA LLEVA ${tot} CERVEZAS`); }
+        if (U.c[d.t] % 10 === 0) { ef.push({ k: 'logro', u, txt: `${U.c[d.t]} ${T.plural.toUpperCase()}` }); feed(s, t, u, '🏆', `${NOMBRES[u]} llega a ${U.c[d.t]} ${T.plural.toLowerCase()}`); }
         const enRonda = USERS.filter((x) => s.users[x].ultEv && t - s.users[x].ultEv <= RONDA_VENTANA);
         if (enRonda.length >= 3 && t - s.ultRonda > RONDA_VENTANA) {
           s.ultRonda = t; s.rondas++;
@@ -306,6 +314,19 @@
         aplicarMesa(s);
         feed(s, t, ADMIN, '👋', `${nombre} se levanta de la mesa`);
         ef.push({ k: 'jugador', op: 'baja', id: d.id });
+      }
+      return ef;
+    }
+
+    if (d.k === 'pref' && (d.por === u || d.por === ADMIN) && typeof d.sinCerveza === 'boolean') {
+      const antes = s.sinCerveza.includes(u);
+      if (antes !== d.sinCerveza) {
+        s.sinCerveza = d.sinCerveza ? [...s.sinCerveza, u] : s.sinCerveza.filter((x) => x !== u);
+        aplicarMesa(s);
+        // Cambia la bebida que cuenta: el reloj arranca de cero, sin castigo
+        Object.assign(U, { hc: [], baseCerveza: t, ultCerveza: t });
+        feed(s, t, u, d.sinCerveza ? '🥃' : '🍺', d.sinCerveza ? `${NOMBRES[u]} no bebe cerveza: le cuentan los cubatas` : `${NOMBRES[u]} vuelve a la cerveza`);
+        ef.push({ k: 'pref', u });
       }
       return ef;
     }
@@ -413,13 +434,19 @@
 
   function insulto(u, seg, semilla) {
     const lista = seg > 2 * HORA_SECA ? INSULTOS_FUERTES.concat(INSULTOS) : INSULTOS;
-    return lista[Math.abs(semilla) % lista.length].replaceAll('{n}', NOMBRES[u]).replaceAll('{h}', horasTexto(seg));
+    let txt = lista[Math.abs(semilla) % lista.length].replaceAll('{n}', NOMBRES[u]).replaceAll('{h}', horasTexto(seg));
+    if (principal(u) === 'cubata') {
+      txt = txt.replace(/\buna cerveza\b/gi, 'un cubata').replace(/\bla cerveza\b/gi, 'el cubata').replace(/\bla birra\b/gi, 'la copa')
+        .replace(/\bcervezas\b/gi, 'cubatas').replace(/\bcerveza\b/gi, 'cubata').replace(/\bbirras?\b/gi, 'copa')
+        .replace(/\bcañas\b/gi, 'copas').replace(/\bbiberón de Mahou\b/gi, 'biberón de ron');
+    }
+    return txt;
   }
 
   return {
     TOPIC, TOPIC_AVISOS, NTFY, USERS, NOMBRES, TIPOS, TIENDA, SIMBOLOS, SLOT_COSTE,
     COMBO_VENTANA, COMBO_MAX, HORA_SECA,
-    ADMIN, idDe, estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
+    ADMIN, idDe, principal, estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
     secos, insulto, horasTexto, clon,
   };
 });
