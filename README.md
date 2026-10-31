@@ -1,6 +1,7 @@
 # Casino Birras 🍺
 
-Marcador de cervezas, cubatas, chupitos y cigarros para Jorlo, Álvaro y David.
+El bote común de cervezas, cubatas, chupitos y cigarros de Jorlo, Álvaro y David.
 
-- Web: https://queren05.github.io/birras/
-- Las jugadas viajan por ntfy.sh (canal en `logica.js`); el servidor de casa guarda copia y vuelve a publicar el estado para que no caduque a las 12 h.
+- **Web:** https://queren05.github.io/birras/
+- **iPhone (KSign):** añade la fuente `https://github.com/queren05/birras/releases/download/ipa-latest/repo.json`
+- Web y app usan el mismo código (`docs/`) y el mismo marcador (canal de ntfy.sh en `docs/logica.js`).

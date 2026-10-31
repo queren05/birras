@@ -1,0 +1,7 @@
+{
+  "appId": "es.david.birras",
+  "appName": "Birras",
+  "webDir": "docs",
+  "backgroundColor": "#16050c",
+  "ios": { "contentInset": "never", "backgroundColor": "#16050c", "scrollEnabled": true }
+}

@@ -7,7 +7,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const TOPIC = 'birras-1c6506043f71c2ef';
+  const TOPIC = 'birras-de6849b089e68e5f';
   const TOPIC_AVISOS = 'birras-avisos-f974dc3317';
   const NTFY = 'https://ntfy.sh';
 

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Casino Birras</title>
+<meta name="description" content="El bote de cervezas, cubatas, chupitos y cigarros de Jorlo, Álvaro y David.">
+<meta name="theme-color" content="#16050c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Birras">
+<link rel="apple-touch-icon" href="icono.png">
+<link rel="icon" href="icono.png">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<div class="fondo" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><canvas id="burbujas"></canvas><div class="grano"></div></div>
+
+<div class="app" id="app">
+  <header class="cabecera glass">
+    <button class="yo-btn pulsable" id="yoBtn" aria-label="Cambiar de jugador"><span class="av" id="yoAv">?</span><span id="yoNom">Entrar</span></button>
+    <div class="marca"><span>Casino Birras</span></div>
+    <button class="icono-btn pulsable" id="sonidoBtn" aria-label="Sonido"></button>
+  </header>
+
+  <!-- ===================== BOTE ===================== -->
+  <section class="vista" data-vista="bote">
+    <div class="bote glass">
+      <div class="etq">El bote de los tres</div>
+      <div class="mega num" id="mega">0</div>
+      <div class="mega-l" id="megaL">cervezas</div>
+      <div class="chips">
+        <div class="chip"><b class="num" id="tCubata">0</b><span>🥃 cubatas</span></div>
+        <div class="chip"><b class="num" id="tChupito">0</b><span>🥂 chupitos</span></div>
+        <div class="chip"><b class="num" id="tCigarro">0</b><span>🚬 cigarros</span></div>
+      </div>
+      <div class="reparto">
+        <div class="barra-rep" id="barraRep"></div>
+        <div class="leyenda" id="leyenda"></div>
+      </div>
+    </div>
+
+    <div class="verguenza glass" id="verguenza" role="alert"><div class="etq">Muro de la vergüenza</div><p id="verguenzaTxt"></p></div>
+
+    <div class="bebidas">
+      <button class="beber cerveza glass pulsable" data-tipo="cerveza">
+        <span class="e">🍺</span><span><span class="n">Una cerveza</span><br><span class="f" id="fCerveza">+10 fichas</span></span><span class="mas">+</span>
+      </button>
+      <button class="beber glass pulsable" data-tipo="cubata"><span class="e">🥃</span><span class="n">Cubata</span><span class="f">+25</span></button>
+      <button class="beber glass pulsable" data-tipo="chupito"><span class="e">🥂</span><span class="n">Chupito</span><span class="f">+15</span></button>
+      <button class="beber glass pulsable" data-tipo="cigarro"><span class="e">🚬</span><span class="n">Cigarro</span><span class="f">+5</span></button>
+    </div>
+
+    <div class="mio glass">
+      <div class="mio-top">
+        <div class="fichas"><b class="num" id="misFichas">0</b><span>fichas</span></div>
+        <div class="pills" id="pills"></div>
+      </div>
+      <div class="reloj" id="reloj"><span id="relojTxt">—</span><div class="barra"><i id="relojBarra" style="width:0"></i></div></div>
+      <button class="deshacer pulsable" id="deshacer" hidden>↩︎ Deshacer lo último</button>
+    </div>
+
+    <div class="lista glass">
+      <h3 class="etq">Lo último</h3>
+      <div id="feedCorto"></div>
+    </div>
+  </section>
+
+  <!-- ===================== CASINO ===================== -->
+  <section class="vista" data-vista="casino">
+    <h1 class="titulo-vista">Casino</h1>
+    <div class="maquina glass">
+      <div class="ventana" aria-hidden="true">
+        <div class="rodillo"><div class="cinta" id="r0"></div></div>
+        <div class="rodillo"><div class="cinta" id="r1"></div></div>
+        <div class="rodillo"><div class="cinta" id="r2"></div></div>
+      </div>
+      <div class="resultado" id="slotRes" aria-live="polite">Hoy es tu noche. Seguro.</div>
+      <button class="palanca pulsable" id="palanca">Tirar · 25 fichas</button>
+      <div class="premios"><span>7️⃣7️⃣7️⃣ +500</span><span>🍺🍺🍺 +200 y racha</span><span>Triple +120</span><span>Pareja +40</span><span>💀💀 chupito</span><span>💀💀💀 fondo</span></div>
+    </div>
+    <button class="doble glass pulsable" id="doble"><b>Doble o nada</b><span id="dobleTxt">Te juegas todas tus fichas. La casa gana el 53 % de las veces.</span></button>
+    <div class="etq" style="padding:6px 4px 0">Power-ups</div>
+    <div class="tienda" id="tienda"></div>
+  </section>
+
+  <!-- ===================== MESA ===================== -->
+  <section class="vista" data-vista="mesa">
+    <h1 class="titulo-vista">La mesa</h1>
+    <div id="ranking" style="display:grid;gap:12px"></div>
+    <div class="lista glass">
+      <h3 class="etq">Todas las jugadas</h3>
+      <div id="feedLargo"></div>
+    </div>
+    <div class="ajustes glass">
+      <button class="fila-aj" id="avisosBtn"><span class="e">🔔</span><div><b>Avisos en este móvil</b><small>Con la app abierta</small></div><span class="val" id="avisosVal"></span></button>
+      <a class="fila-aj" id="ntfyLink" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><span class="e">📣</span><div><b>Insultos con la app cerrada</b><small id="ntfyTxt"></small></div><span class="val">›</span></a>
+      <button class="fila-aj" id="cambiarBtn"><span class="e">🪑</span><div><b>Cambiar de jugador</b><small id="cambiarTxt"></small></div><span class="val">›</span></button>
+    </div>
+    <p class="conexion" id="conexion">Conectando con la mesa…</p>
+  </section>
+</div>
+
+<nav class="tabbar glass" aria-label="Secciones">
+  <button class="tab" data-tab="bote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h10v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M6 8a3 3 0 0 1 3-4 3 3 0 0 1 5 0 2.5 2.5 0 0 1 2 4"/></svg>Bote</button>
+  <button class="tab" data-tab="casino"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M9 5v14M15 5v14"/><circle cx="6" cy="12" r=".8" fill="currentColor"/><circle cx="12" cy="12" r=".8" fill="currentColor"/><circle cx="18" cy="12" r=".8" fill="currentColor"/></svg>Casino</button>
+  <button class="tab" data-tab="mesa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2.5 19a5.5 5.5 0 0 1 11 0M14 19a4 4 0 0 1 7.5-1.5"/></svg>Mesa</button>
+</nav>
+
+<div class="capa" id="capaEntrar" role="dialog" aria-modal="true" aria-labelledby="entrarT">
+  <div class="hoja glass">
+    <h2 id="entrarT">¿Quién eres?</h2>
+    <p class="sub">Elige tu silla. Todo lo que apuntes va al bote de los tres.</p>
+    <div id="sillas" style="display:grid;gap:10px"></div>
+  </div>
+</div>
+
+<div class="capa bronca" id="capaBronca" role="alertdialog" aria-modal="true" aria-labelledby="broncaT">
+  <div class="hoja glass">
+    <div class="grande" id="broncaT">BEBE</div>
+    <div class="frase" id="broncaFrase"></div>
+    <button class="ya pulsable" id="broncaYa">🍺 Vale, otra cerveza</button>
+    <button class="luego" id="broncaLuego">Dame 5 minutos, que voy a la barra</button>
+  </div>
+</div>
+
+<canvas id="lienzo"></canvas>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="logica.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

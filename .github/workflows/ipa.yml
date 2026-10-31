@@ -1,0 +1,82 @@
+# Compila la app de iPhone (.ipa SIN FIRMAR, se firma con KSign) con la misma web de docs/
+# y la publica en la release "ipa-latest" junto con la fuente de KSign (repo.json).
+name: IPA para KSign
+
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**', 'capacitor.config.json', 'package.json', 'resources/**', '.github/workflows/ipa.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ipa
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Crear el proyecto iOS (Capacitor)
+        run: |
+          npm install
+          npx cap add ios
+          mkdir -p assets && cp resources/icon.png assets/icon-only.png
+          npx --yes @capacitor/assets generate --ios --iconBackgroundColor "#16050c" || echo "Iconos: se usa el por defecto"
+          npx cap sync ios
+          sh scripts/sin-barra-scroll.sh
+          PL=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Birras" $PL || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string Birras" $PL
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" $PL || true
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations" $PL || true
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations array" $PL
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationPortrait" $PL
+          /usr/libexec/PlistBuddy -c "Add :UIStatusBarStyle string UIStatusBarStyleLightContent" $PL || true
+          /usr/libexec/PlistBuddy -c "Add :UIViewControllerBasedStatusBarAppearance bool false" $PL || /usr/libexec/PlistBuddy -c "Set :UIViewControllerBasedStatusBarAppearance false" $PL
+
+      - name: Compilar sin firma
+        working-directory: ios/App
+        run: |
+          if [ -d App.xcworkspace ]; then SRC="-workspace App.xcworkspace"; else SRC="-project App.xcodeproj"; fi
+          xcodebuild $SRC -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            MARKETING_VERSION=1.0.${{ github.run_number }} CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            build | tail -40
+
+      - name: Empaquetar el .ipa
+        run: |
+          APPDIR=$(find "$RUNNER_TEMP/dd/Build/Products" -maxdepth 2 -name 'App.app' -type d | head -1)
+          test -d "$APPDIR"
+          mkdir -p "$RUNNER_TEMP/pkg/Payload" out
+          cp -R "$APPDIR" "$RUNNER_TEMP/pkg/Payload/"
+          (cd "$RUNNER_TEMP/pkg" && zip -qry "$GITHUB_WORKSPACE/out/Birras.ipa" Payload)
+          cp resources/icon.png out/icono.png
+          ls -la out
+
+      - name: Publicar el .ipa y la fuente de KSign
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=ipa-latest
+          VER=1.0.${{ github.run_number }}
+          BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
+          jq -n --arg v "$VER" --arg bv "${{ github.run_number }}" --arg u "$BASE/Birras.ipa" --argjson s "$(stat -f%z out/Birras.ipa)" \
+            --arg i "$BASE/icono.png" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{name:"Casino Birras", identifier:"es.david.birras.fuente", subtitle:"El bote de los tres", iconURL:$i, tintColor:"ffb21a",
+              apps:[{name:"Birras", bundleIdentifier:"es.david.birras", developerName:"David", subtitle:"El bote de los tres",
+                localizedDescription:"Cervezas, cubatas, chupitos y cigarros de Jorlo, Álvaro y David, con combos, tragaperras y power-ups.",
+                iconURL:$i, tintColor:"ffb21a", category:"entertainment",
+                versions:[{version:$v, buildVersion:$bv, date:$date, downloadURL:$u, size:$s, localizedDescription:("Versión " + $v), minOSVersion:"15.0"}]}]}' > out/repo.json
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Birras para iPhone" --notes "Añade en KSign la fuente: $BASE/repo.json"
+          gh release upload "$TAG" out/Birras.ipa out/icono.png out/repo.json --clobber
