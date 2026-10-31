@@ -119,7 +119,7 @@ button:focus-visible{outline:2px solid var(--espuma);outline-offset:3px}
 .leyenda i{width:8px;height:8px;border-radius:50%}
 
 /* ---------- Botones de bebida ---------- */
-.bebidas{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.bebidas{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .beber{display:grid;justify-items:center;gap:2px;padding:16px 6px 14px;border-radius:26px;overflow:hidden}
 .beber .e{font-size:40px;line-height:1.1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.3))}
 .beber .n{font-weight:700;font-size:15px}
@@ -601,3 +601,12 @@ html{-webkit-overflow-scrolling:touch}
 .letra small{display:block;font-family:var(--f0);font-size:10px;color:var(--txt2);margin-top:2px}
 .letra.on{border-color:var(--txt);background:rgba(255,255,255,.22)}
 [data-tema="claro"] .letra{background:rgba(120,60,0,.07)}
+
+/* Cubata, chupito, cigarro y porro en una sola fila de 4 */
+.bebidas .beber:not(.cerveza){padding:12px 2px 10px;border-radius:22px;gap:1px;min-width:0}
+.bebidas .beber:not(.cerveza) .e{font-size:30px}
+.bebidas .beber:not(.cerveza) .n{font-size:13.5px;white-space:nowrap}
+.bebidas .beber:not(.cerveza) .f{font-size:11px;white-space:nowrap}
+
+.marcador .cab{flex-wrap:wrap;gap:2px 10px}
+.marcador .cab span:last-child{font-size:11.5px;white-space:nowrap}
