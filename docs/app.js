@@ -10,7 +10,10 @@
   let sonido = leer('birras-sonido') !== 'no';
   let desfase = 0, ultSnap = 0, ultimoId = null, es = null;
   const misEids = new Set();
-  let ultimoMio = null;          // última bebida apuntada desde este móvil (para deshacer)
+  // Pila de deshacer de este móvil: cada entrada es lo que se publicó ({u, t, n}).
+  let pila = []; try { pila = JSON.parse(leer('birras-pila') || '[]'); } catch (e) { pila = []; }
+  let modo = 'sumar', fixU = null;
+  const guardarPila = () => { pila = pila.slice(-30); guardar('birras-pila', JSON.stringify(pila)); };
   let broncaHasta = 0, yaAvisado = false, dianaVista = 0, megaAntes = null, dianaAbierta = false, girando = false;
 
   function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -123,11 +126,12 @@
     const secos = new Set(B.secos(S, now).map((x) => x.u));
     $('ranking').innerHTML = orden.map((u, i) => {
       const U = S.users[u], seg = Math.max(0, now - U.ultCerveza);
-      return `<div class="persona glass${u === yo ? ' yo' : ''}${secos.has(u) ? ' seco' : ''}">
+      return `<div class="persona glass${u === yo ? ' yo' : ''}${secos.has(u) ? ' seco' : ''}" data-persona="${u}" role="button" tabindex="0" aria-label="Corregir a ${B.NOMBRES[u]}">
         <span class="av ${u}">${inicial(u)}</span>
         <div><div class="nom">${B.NOMBRES[u]}<span class="pos">${['🥇', '🥈', '🥉'][i] || ''}</span></div>
           <div class="det num"><span>🍺 ${U.c.cerveza}</span><span>🥃 ${U.c.cubata}</span><span>🥂 ${U.c.chupito}</span><span>🚬 ${U.c.cigarro}</span></div>
           <div class="hace${secos.has(u) ? ' mal' : ''}">${secos.has(u) ? 'Seco desde hace ' : 'Última cerveza hace '}${B.horasTexto(seg)} · ${U.fichas} fichas${U.castigos ? ` · 💀 ${U.castigos}` : ''}</div>
+          <div class="editar">Toca para corregir</div>
         </div>
         <div class="tot num">${B.fmtPts(aporte(u))}<small>puntos</small></div>
       </div>`;
@@ -158,8 +162,10 @@
     $('palanca').disabled = U.fichas < B.SLOT_COSTE;
     $('doble').disabled = U.fichas < 20;
     $('dobleTxt').textContent = U.fichas >= 20 ? `Te juegas tus ${U.fichas} fichas. La casa gana el 53 % de las veces.` : 'Necesitas al menos 20 fichas para arruinarte.';
-    $('deshacer').hidden = !ultimoMio;
-    if (ultimoMio) $('deshacer').textContent = `↩︎ Deshacer ${B.TIPOS[ultimoMio].un}`;
+    const ult = pila[pila.length - 1];
+    $('deshacer').hidden = !ult;
+    if (ult) $('deshacer').textContent = `↩︎ Deshacer: ${ult.n > 0 ? '+1' : '−1'} ${B.TIPOS[ult.t].nombre.toLowerCase()}${ult.u !== yo ? ` de ${B.NOMBRES[ult.u]}` : ''}${pila.length > 1 ? ` · quedan ${pila.length}` : ''}`;
+    if ($('capaFix').classList.contains('on')) pintarFix();
     pintarTienda(U);
   }
 
@@ -216,9 +222,25 @@
     if (b.dataset.tipo) {
       if (!yo) return pedirSilla();
       onda(b, e);
-      sonar('moneda'); vibrar('medio');
-      ultimoMio = b.dataset.tipo;
-      publicar({ k: 'ev', u: yo, t: b.dataset.tipo, n: 1 });
+      if (modo === 'quitar') {
+        if (!S.users[yo].c[b.dataset.tipo]) return toast(`No tienes ${B.TIPOS[b.dataset.tipo].plural.toLowerCase()} que quitar.`);
+        vibrar('medio'); sonar('pierde');
+        apuntar(yo, b.dataset.tipo, -1);
+      } else {
+        sonar('moneda'); vibrar('medio');
+        apuntar(yo, b.dataset.tipo, 1);
+      }
+    } else if (b.dataset.modo) {
+      modo = b.dataset.modo;
+      document.querySelectorAll('.modo-b').forEach((x) => x.classList.toggle('on', x === b));
+      $('bebidas').classList.toggle('quitar', modo === 'quitar');
+      document.querySelectorAll('.beber .mas').forEach((x) => { x.textContent = modo === 'quitar' ? '−' : '+'; });
+      vibrar('suave');
+    } else if (b.dataset.fix) {
+      const [t, n] = b.dataset.fix.split(':');
+      if (+n < 0 && !S.users[fixU].c[t]) return;
+      vibrar('suave'); sonar(+n > 0 ? 'moneda' : 'pierde');
+      apuntar(fixU, t, +n, true);
     } else if (b.dataset.tab) {
       irA(b.dataset.tab); vibrar('suave');
     } else if (b.dataset.pw) {
@@ -237,12 +259,37 @@
     window.scrollTo({ top: 0 });
   }
 
-  $('deshacer').onclick = () => {
-    if (!yo || !ultimoMio || !S.users[yo].c[ultimoMio]) return;
-    if (!confirm(`¿Quitar ${B.TIPOS[ultimoMio].un} del bote? Cobarde.`)) return;
-    publicar({ k: 'ev', u: yo, t: ultimoMio, n: -1 });
-    ultimoMio = null; pintar();
-  };
+  /* Apunta y guarda en la pila para poder deshacer. */
+  function apuntar(u, t, n, fix) {
+    const d = { k: 'ev', u, t, n, por: yo };
+    if (fix && n > 0) d.fix = true;
+    pila.push({ u, t, n }); guardarPila();
+    publicar(d); pintar();
+  }
+  function deshacer() {
+    const ult = pila.pop(); guardarPila();
+    if (!ult) return;
+    if (ult.n > 0 && !S.users[ult.u].c[ult.t]) { toast('Eso ya estaba quitado.'); pintar(); return; }
+    publicar({ k: 'ev', u: ult.u, t: ult.t, n: -ult.n, por: yo, fix: true, deshacer: true });
+    vibrar('medio'); sonar('compra'); pintar();
+  }
+  $('deshacer').onclick = deshacer;
+
+  /* Corregir a cualquiera desde la Mesa */
+  $('ranking').addEventListener('click', (e) => {
+    const c = e.target.closest('[data-persona]');
+    if (!c || !S) return;
+    fixU = c.dataset.persona; pintarFix(); $('capaFix').classList.add('on'); vibrar('suave');
+  });
+  function pintarFix() {
+    if (!fixU || !S) return;
+    $('fixT').textContent = `Corregir a ${B.NOMBRES[fixU]}`;
+    $('fixFilas').innerHTML = Object.keys(B.TIPOS).map((t) => `<div class="fix-fila"><span class="e">${B.TIPOS[t].ico}</span><b>${B.TIPOS[t].plural}</b>
+      <button class="menos pulsable" data-fix="${t}:-1" aria-label="Quitar ${B.TIPOS[t].un}">−</button><span class="n num">${S.users[fixU].c[t]}</span><button class="pulsable" data-fix="${t}:1" aria-label="Añadir ${B.TIPOS[t].un}">+</button></div>`).join('') +
+      (pila.length ? `<button class="deshacer pulsable" id="fixDeshacer" style="justify-self:center">↩︎ Deshacer lo último</button>` : '');
+    const fd = $('fixDeshacer'); if (fd) fd.onclick = deshacer;
+  }
+  $('fixOk').onclick = () => { $('capaFix').classList.remove('on'); fixU = null; };
   $('palanca').onclick = () => {
     if (!yo || !S || S.users[yo].fichas < B.SLOT_COSTE || girando) return;
     const r = B.tirarSlot();
@@ -255,7 +302,7 @@
     if (f < 20 || !confirm(`¿Te juegas tus ${f} fichas a doble o nada?`)) return;
     publicar({ k: 'doble', u: yo, gana: Math.random() < 0.47 });
   };
-  $('broncaYa').onclick = () => { $('capaBronca').classList.remove('on'); ultimoMio = 'cerveza'; publicar({ k: 'ev', u: yo, t: 'cerveza', n: 1 }); sonar('moneda'); vibrar('medio'); };
+  $('broncaYa').onclick = () => { $('capaBronca').classList.remove('on'); apuntar(yo, 'cerveza', 1); sonar('moneda'); vibrar('medio'); };
   $('broncaLuego').onclick = () => { $('capaBronca').classList.remove('on'); broncaHasta = ahora() + 300; };
   $('yoBtn').onclick = pedirSilla;
   $('cambiarBtn').onclick = pedirSilla;
@@ -345,7 +392,9 @@
   function animar(efectos, mio) {
     for (const e of efectos) {
       const quien = B.NOMBRES[e.u] || '';
-      if (e.k === 'bebida') {
+      if (e.k === 'quita' || e.k === 'corrige') {
+        if (!mio) toast(`✏️  ${e.k === 'quita' ? '−1' : '+1'} ${B.TIPOS[e.t].nombre.toLowerCase()} a ${quien}`);
+      } else if (e.k === 'bebida') {
         if (mio) { flotante(`+${e.fichas}`, `${B.TIPOS[e.t].ico} al bote`); confeti(e.t === 'cigarro' ? 10 : 26, [B.TIPOS[e.t].ico, '🪙']); destello(); }
         else { toast(`${B.TIPOS[e.t].ico}  ${quien} ha sumado ${B.TIPOS[e.t].un} al bote`); sonar('moneda'); vibrar('suave'); }
       } else if (e.k === 'combo') {

@@ -44,7 +44,11 @@
 
     <div class="verguenza glass" id="verguenza" role="alert"><div class="etq">Muro de la vergüenza</div><p id="verguenzaTxt"></p></div>
 
-    <div class="bebidas">
+    <div class="modo glass" role="tablist" aria-label="Sumar o quitar">
+      <button class="modo-b on" data-modo="sumar">＋ Sumar</button>
+      <button class="modo-b" data-modo="quitar">－ Quitar</button>
+    </div>
+    <div class="bebidas" id="bebidas">
       <button class="beber cerveza glass pulsable" data-tipo="cerveza">
         <span class="e">🍺</span><span><span class="n">Una cerveza</span><br><span class="f" id="fCerveza">+1 punto · +10 fichas</span></span><span class="mas">+</span>
       </button>
@@ -65,7 +69,7 @@
         <div class="pills" id="pills"></div>
       </div>
       <div class="reloj" id="reloj"><span id="relojTxt">—</span><div class="barra"><i id="relojBarra" style="width:0"></i></div></div>
-      <button class="deshacer pulsable" id="deshacer" hidden>↩︎ Deshacer lo último</button>
+      <button class="deshacer pulsable" id="deshacer" hidden>↩︎ Deshacer</button>
     </div>
 
     <div class="lista glass">
@@ -122,6 +126,15 @@
     <h2 id="entrarT">¿Quién eres?</h2>
     <p class="sub">Elige tu silla. Todo lo que apuntes va al bote de la mesa.</p>
     <div id="sillas" style="display:grid;gap:10px"></div>
+  </div>
+</div>
+
+<div class="capa" id="capaFix" role="dialog" aria-modal="true" aria-labelledby="fixT">
+  <div class="hoja glass">
+    <h2 id="fixT">Corregir</h2>
+    <p class="sub">Cada toque se apunta al momento. Se puede deshacer.</p>
+    <div id="fixFilas" style="display:grid;gap:8px"></div>
+    <button class="ya-fix pulsable" id="fixOk">Listo</button>
   </div>
 </div>
 

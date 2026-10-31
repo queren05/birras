@@ -124,11 +124,20 @@
 
     if (d.k === 'ev' && TIPOS[d.t]) {
       const T = TIPOS[d.t];
+      const quien = NOMBRES[d.por] || NOMBRES[u];
+      const aOtro = d.por && d.por !== u ? ` a ${NOMBRES[u]}` : '';
       if (d.n < 0) {
         if (U.c[d.t] > 0) {
           U.c[d.t]--; U.fichas = Math.max(0, U.fichas - T.fichas);
-          feed(s, t, u, '↩️', `${NOMBRES[u]} se ha arrepentido de ${T.un}`);
+          feed(s, t, u, '➖', d.deshacer ? `${quien} deshace: −1 ${T.nombre.toLowerCase()}${aOtro}` : `${quien} quita ${T.un}${aOtro}`);
+          ef.push({ k: 'quita', u, t: d.t });
         }
+        return ef;
+      }
+      if (d.fix) {   // corrección o deshacer: suma sin combos ni fichas extra
+        U.c[d.t]++; U.fichas += T.fichas;
+        feed(s, t, u, '✏️', d.deshacer ? `${quien} deshace: +1 ${T.nombre.toLowerCase()}${aOtro}` : `${quien} corrige: +1 ${T.nombre.toLowerCase()}${aOtro}`);
+        ef.push({ k: 'corrige', u, t: d.t });
         return ef;
       }
       U.c[d.t]++;

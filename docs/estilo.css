@@ -275,3 +275,23 @@ button:focus-visible{outline:2px solid var(--espuma);outline-offset:3px}
 .temas{display:flex;gap:10px;flex-wrap:wrap;padding:4px 12px 12px 52px}
 .tema{width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.25);box-shadow:inset 0 1px 0 rgba(255,255,255,.6);display:grid;place-items:center;font-size:11px;font-weight:800}
 .tema.on{border-color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.35),inset 0 1px 0 rgba(255,255,255,.6)}
+
+/* ---------- Sumar / Quitar y correcciones ---------- */
+.modo{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:99px}
+.modo-b{padding:10px;border-radius:99px;font-weight:700;font-size:15px;color:var(--txt2);transition:background .25s,color .25s}
+.modo-b.on{background:rgba(255,255,255,.24);color:var(--txt);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.modo-b[data-modo="quitar"].on{background:linear-gradient(160deg,rgba(255,59,71,.75),rgba(160,0,40,.6))}
+.bebidas.quitar .beber{background:linear-gradient(160deg,rgba(255,59,71,.45),rgba(120,0,30,.35))}
+.bebidas.quitar .beber .e{filter:grayscale(.5) drop-shadow(0 4px 8px rgba(0,0,0,.3))}
+.bebidas.quitar .beber.cerveza .mas{background:rgba(255,59,71,.6)}
+.persona{cursor:pointer}
+.persona .editar{font-size:12.5px;color:var(--txt2);margin-top:4px;text-decoration:underline}
+.fix-fila{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:10px;align-items:center;padding:8px 10px;border-radius:20px;background:rgba(255,255,255,.1);text-align:left}
+.fix-fila .e{font-size:26px}
+.fix-fila b{font-weight:700}
+.fix-fila .n{font-family:var(--fr);font-weight:900;font-size:24px;min-width:34px;text-align:center}
+.fix-fila button{width:44px;height:44px;border-radius:50%;font-size:24px;font-weight:800;background:rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.fix-fila button.menos{background:rgba(255,59,71,.55)}
+.ya-fix{padding:15px;border-radius:99px;font-family:var(--fr);font-weight:900;font-size:18px;background:rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+.toast.con-accion{pointer-events:auto;display:flex;align-items:center;gap:10px}
+.toast.con-accion button{margin-left:auto;padding:6px 12px;border-radius:99px;background:rgba(255,255,255,.25);font-weight:800;font-size:14px}
