@@ -44,7 +44,7 @@
     for (const u of USERS) {
       users[u] = {
         c: { cerveza: 0, cubata: 0, chupito: 0, cigarro: 0 },
-        fichas: 0, ultCerveza: ts, ultEv: 0, primera: 0, ultBebida: 0, ultCigarro: 0,
+        fichas: 0, ultCerveza: ts, ultEv: 0, primera: 0, ultBebida: 0, hc: [], gan: {}, baseCerveza: 0, ultCigarro: 0,
         combo: 0, maxCombo: 0, racha: 0, escudo: 0, castigos: 0,
       };
     }
@@ -59,7 +59,7 @@
     for (const u of USERS) {
       const U = s.users[u];
       if (!U) { s.users[u] = estadoInicial(s.upto || 0).users[u]; continue; }
-      s.users[u] = Object.assign({}, vacio.users[u], U, { c: Object.assign({}, vacio.users[u].c, U.c) });
+      s.users[u] = Object.assign({}, vacio.users[u], U, { c: Object.assign({}, vacio.users[u].c, U.c), hc: Array.isArray(U.hc) ? U.hc : [], gan: U.gan && typeof U.gan === 'object' ? U.gan : {} });
     }
     for (const k of ['happy', 'rondas', 'ultRonda', 'upto', 't0']) if (s[k] == null) s[k] = 0;
     if (!s.hist) s.hist = {};
@@ -146,12 +146,21 @@
       const U = o.users[u];
       for (const t of Object.keys(U.c)) if (!U.c[t]) delete U.c[t];
       for (const k of Object.keys(U)) if (U[k] === 0) delete U[k];
+      if (!U.hc.length) delete U.hc;
+      for (const t of Object.keys(U.gan)) if (!U.gan[t].length) delete U.gan[t];
+      if (!Object.keys(U.gan).length) delete U.gan;
     }
     for (const f of o.feed) delete f.u;
     o.feed = o.feed.slice(0, 12);
     while (JSON.stringify({ k: 'snap', s: o }).length > 3600 && o.feed.length) o.feed.pop();
     while (JSON.stringify({ k: 'snap', s: o }).length > 3600 && Object.keys(o.hist).length) delete o.hist[Object.keys(o.hist).sort((a, b) => a - b)[0]];
     return o;
+  }
+
+  /* Recuerda las fichas que dio cada una de las últimas consumiciones, para devolverlas al quitarla. */
+  function apilar(U, tipo, n) {
+    const l = U.gan[tipo] || (U.gan[tipo] = []);
+    l.push(n); if (l.length > 5) l.shift();
   }
 
   /* Aplica un mensaje {id, time, d} y devuelve efectos para animar. */
@@ -169,14 +178,26 @@
       const aOtro = d.por && d.por !== u ? ` a ${NOMBRES[u]}` : '';
       if (d.n < 0) {
         if (U.c[d.t] > 0) {
-          U.c[d.t]--; U.fichas = Math.max(0, U.fichas - T.fichas); histo(s, t, d.t, -1);
+          U.c[d.t]--; histo(s, t, d.t, -1);
+          // Se quitan las fichas que dio esa consumición (con su combo), no solo las básicas.
+          const g = U.gan[d.t] && U.gan[d.t].length ? U.gan[d.t].pop() : T.fichas;
+          U.fichas = Math.max(0, U.fichas - g);
+          if (d.t === 'cerveza') {
+            // La «última cerveza» vuelve a ser la anterior de verdad.
+            if (U.hc.length) U.hc.pop();
+            U.ultCerveza = U.hc.length ? U.hc[U.hc.length - 1] : (U.baseCerveza || U.ultCerveza);
+            U.ultEv = U.hc.length ? U.hc[U.hc.length - 1] : 0;
+          }
+          if (T.bebida && U.combo > 0) U.combo--;
           feed(s, t, u, '➖', d.deshacer ? `${quien} deshace: −1 ${T.nombre.toLowerCase()}${aOtro}` : `${quien} quita ${T.un}${aOtro}`);
           ef.push({ k: 'quita', u, t: d.t });
         }
         return ef;
       }
-      if (d.fix) {   // corrección o deshacer: suma sin combos ni fichas extra
+      if (d.fix) {   // corrección o deshacer: suma sin combos ni fichas extra y sin cambiar la hora de la última
         U.c[d.t]++; U.fichas += T.fichas; histo(s, t, d.t, 1);
+        apilar(U, d.t, T.fichas);
+        if (d.t === 'cerveza') { if (!U.hc.length) U.baseCerveza = U.ultCerveza; U.hc.push(U.ultCerveza); U.hc = U.hc.slice(-5); }
         s.t0 = s.t0 || t; U.primera = U.primera || t;
         feed(s, t, u, '✏️', d.deshacer ? `${quien} deshace: +1 ${T.nombre.toLowerCase()}${aOtro}` : `${quien} corrige: +1 ${T.nombre.toLowerCase()}${aOtro}`);
         ef.push({ k: 'corrige', u, t: d.t });
@@ -196,10 +217,13 @@
       }
       const ganadas = T.fichas * m;
       U.fichas += ganadas;
+      apilar(U, d.t, ganadas);
       ef.push({ k: 'bebida', u, t: d.t, fichas: ganadas });
       feed(s, t, u, T.ico, `${NOMBRES[u]} +1 ${T.nombre.toLowerCase()}${m > 1 ? ` (x${m})` : ''} · +${ganadas}`);
 
       if (d.t === 'cerveza') {
+        if (!U.hc.length) U.baseCerveza = U.ultCerveza;
+        U.hc.push(t); U.hc = U.hc.slice(-5);
         U.ultCerveza = t; U.ultEv = t;
         if (U.c.cerveza % 10 === 0) { ef.push({ k: 'logro', u, txt: `${U.c.cerveza} CERVEZAS` }); feed(s, t, u, '🏆', `${NOMBRES[u]} llega a ${U.c.cerveza} cervezas`); }
         const tot = totalGrupo(s);
@@ -241,6 +265,11 @@
       return ef;
     }
 
+    if (d.k === 'ajuste' && d.por === 'servidor' && d.campos && typeof d.campos === 'object') {
+      for (const [k, v] of Object.entries(d.campos)) if (['ultCerveza', 'ultEv', 'fichas'].includes(k) && Number.isFinite(v)) U[k] = v;
+      return ef;
+    }
+
     if (d.k === 'noche') {   // cerrar la noche: se guarda el resumen y el bote vuelve a cero
       const tot = ORDEN.map((x) => totalGrupo(s, x));
       if (tot.some(Boolean)) {
@@ -251,7 +280,7 @@
       for (const x of USERS) {
         const X = s.users[x];
         X.c = { cerveza: 0, cubata: 0, chupito: 0, cigarro: 0 };
-        Object.assign(X, { ultCerveza: t, ultEv: 0, primera: 0, ultBebida: 0, ultCigarro: 0, combo: 0, maxCombo: 0, castigos: 0, racha: 0, escudo: 0 });
+        Object.assign(X, { hc: [], gan: {}, baseCerveza: 0, ultCerveza: t, ultEv: 0, primera: 0, ultBebida: 0, ultCigarro: 0, combo: 0, maxCombo: 0, castigos: 0, racha: 0, escudo: 0 });
       }
       Object.assign(s, { hist: {}, rondas: 0, ultRonda: 0, happy: 0, diana: null, t0: 0, feed: [] });
       feed(s, t, u, '🌅', `${NOMBRES[u]} cierra la noche. Bote a cero.`);

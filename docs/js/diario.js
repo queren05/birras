@@ -1,6 +1,7 @@
 /* Diario de cervezas: registro, historial con filtros, favoritas y «quiero probar».
  * Todo se guarda en el móvil (IndexedDB) y funciona sin conexión. */
 import * as db from './db.js';
+import * as sync from './sync.js';
 import { ESTILOS, CERVEZAS, PAISES, FAMILIA, bandera, validar } from './catalogo.js';
 
 const A = () => window.BirrasApp;           // puente con el resto de la app (toast, vibrar, bote…)
@@ -17,16 +18,41 @@ const urls = new Map();   // id -> objectURL de la foto (caché)
 
 /* ================= Carga ================= */
 export async function iniciar() {
-  db.persistir();
-  try {
-    [estado.cervezas, estado.porProbar] = await Promise.all([db.todas('cervezas'), db.todas('porProbar')]);
-  } catch (e) {
-    A().toast('No se ha podido abrir tu diario en este móvil. Prueba a cerrar y abrir la app.');
-    estado.cervezas = []; estado.porProbar = [];
-  }
   montarFiltros();
-  pintar();
   enlazar();
+  sync.alCambiar(pintarSync);
+  document.addEventListener('birras:yo', recargar);   // al cambiar de jugador, su diario
+  addEventListener('online', recargar);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') recargar(); });
+  await recargar();
+}
+
+/* El diario se descarga del servidor de casa cada vez (no se guarda en el móvil). */
+let cargando = null;
+async function recargar() {
+  const u = A().yo();
+  if (!u) { estado.cervezas = []; estado.porProbar = []; pintar(); return; }
+  if (cargando) return cargando;
+  cargando = (async () => {
+    try {
+      const subidas = await sync.migrarLocal(u);
+      if (subidas) A().toast(`☁️ Subiendo al servidor ${subidas} cervezas que estaban solo en este móvil.`);
+      const r = await sync.cargar(u);
+      estado.cervezas = r.cervezas; estado.porProbar = r.porProbar; estado.conectado = r.conectado;
+    } catch (e) {
+      estado.conectado = false;
+    }
+    pintar();
+  })();
+  try { await cargando; } finally { cargando = null; }
+}
+function pintarSync(st) {
+  const el = $('dSync'); if (!el) return;
+  if (st.error && st.pendientes) el.textContent = `⏳ ${st.pendientes} cambio${st.pendientes > 1 ? 's' : ''} esperando conexión con el servidor`;
+  else if (st.error) el.textContent = '⚠️ Sin conexión con el servidor. Lo que apuntes se subirá cuando vuelva.';
+  else if (st.pendientes) el.textContent = `☁️ Subiendo ${st.pendientes} cambio${st.pendientes > 1 ? 's' : ''}…`;
+  else el.textContent = '☁️ Guardado en el servidor';
+  el.className = 'd-sync' + (st.error ? ' mal' : '');
 }
 
 /* ================= Utilidades de presentación ================= */
@@ -53,12 +79,13 @@ const tono = (estilo) => TONOS[FAMILIA[estilo] || 'Otra'];
 
 async function urlFoto(id) {
   if (urls.has(id)) return urls.get(id);
-  const blob = await db.fotoLeer(id).catch(() => null);
-  const u = blob ? URL.createObjectURL(blob) : null;
+  // Si la foto aún no ha subido se enseña la del buzón; si no, la del servidor.
+  const blob = await sync.fotoPendiente(id);
+  const u = blob ? URL.createObjectURL(blob) : `${sync.API}/api/fotos/${id}`;
   urls.set(id, u);
   return u;
 }
-function olvidarFoto(id) { const u = urls.get(id); if (u) URL.revokeObjectURL(u); urls.delete(id); }
+function olvidarFoto(id) { const u = urls.get(id); if (u && u.startsWith('blob:')) URL.revokeObjectURL(u); urls.delete(id); }
 
 /* Foto: se reduce a 1080 px y JPEG 0,8 (≈150 KB) para no llenar el móvil. */
 async function comprimir(file) {
@@ -246,16 +273,17 @@ async function guardarForm() {
   const fecha = Number.isFinite(fechaIn) ? Math.min(fechaIn, ahora + 6e4) : ahora;
   const previo = estado.editando ? estado.cervezas.find((c) => c.id === estado.editando) : null;
   const id = previo ? previo.id : db.nuevoId();
-  const ficha = { ...(previo || {}), ...r.datos, id, fecha, editado: ahora, creado: previo ? previo.creado : ahora, favorita: previo ? !!previo.favorita : false, u: previo?.u || A().yo() || null };
+  if (!A().yo()) { A().toast('Elige primero quién eres.'); return; }
+  const ficha = { ...(previo || {}), ...r.datos, id, fecha, editado: ahora, creado: previo ? previo.creado : ahora, favorita: previo ? !!previo.favorita : false, u: A().yo() };
   $('fGuardar').disabled = true;
   try {
-    if (estado.form.foto) { await db.fotoGuardar(id, estado.form.foto); olvidarFoto(id); ficha.tieneFoto = true; }
-    else if (estado.form.quitarFoto) { await db.fotoBorrar(id); olvidarFoto(id); ficha.tieneFoto = false; }
-    await db.guardar('cervezas', ficha);
-    if (estado.deProbar) { await db.borrar('porProbar', estado.deProbar); estado.porProbar = estado.porProbar.filter((p) => p.id !== estado.deProbar); }
+    if (estado.form.foto) { await sync.subirFoto(id, estado.form.foto, ficha.u); olvidarFoto(id); ficha.tieneFoto = true; }
+    else if (estado.form.quitarFoto) { olvidarFoto(id); ficha.tieneFoto = false; }
+    await sync.poner('cervezas', ficha);
+    if (estado.deProbar) { await sync.quitar('porProbar', estado.deProbar, ficha.u); estado.porProbar = estado.porProbar.filter((p) => p.id !== estado.deProbar); }
   } catch (e) {
     $('fGuardar').disabled = false;
-    A().toast('No se ha podido guardar en el móvil. ¿Queda espacio libre?');
+    A().toast('No se ha podido guardar. Vuelve a intentarlo.');
     return;
   }
   $('fGuardar').disabled = false;
@@ -307,7 +335,8 @@ async function alternarFav(id) {
   const c = estado.cervezas.find((x) => x.id === id);
   if (!c) return;
   c.favorita = !c.favorita;
-  try { await db.guardar('cervezas', c); } catch (e) { c.favorita = !c.favorita; return A().toast('No se ha podido guardar.'); }
+  c.editado = Date.now();
+  try { await sync.poner('cervezas', c); } catch (e) { c.favorita = !c.favorita; return A().toast('No se ha podido guardar.'); }
   A().vibrar('suave');
   pintar();
   if ($('capaDetalle').classList.contains('on')) verDetalle(id);
@@ -315,7 +344,7 @@ async function alternarFav(id) {
 async function borrarFicha(id) {
   const c = estado.cervezas.find((x) => x.id === id);
   if (!c || !await A().preguntar('¿Borrar esta cerveza?', `${c.nombre} desaparecerá de tu diario. No se puede deshacer.`, 'Borrar', true)) return;
-  try { await db.borrar('cervezas', id); await db.fotoBorrar(id); } catch (e) { return A().toast('No se ha podido borrar.'); }
+  try { await sync.quitar('cervezas', id, c.u || A().yo()); } catch (e) { return A().toast('No se ha podido borrar.'); }
   olvidarFoto(id);
   estado.cervezas = estado.cervezas.filter((x) => x.id !== id);
   $('capaDetalle').classList.remove('on');
@@ -333,8 +362,9 @@ async function guardarPorProbar() {
   const r = validar({ nombre: $('ppNombre').value, marca: $('ppMarca').value, estilo: $('ppEstilo').value, pais: $('ppPais').value });
   $('ppErr').textContent = r.ok ? '' : r.errores.nombre;
   if (!r.ok) return A().vibrar('fuerte');
-  const p = { id: db.nuevoId(), nombre: r.datos.nombre, marca: r.datos.marca, estilo: r.datos.estilo, pais: r.datos.pais, nota: $('ppNota').value.trim().slice(0, 140), creado: Date.now() };
-  try { await db.guardar('porProbar', p); } catch (e) { return A().toast('No se ha podido guardar.'); }
+  if (!A().yo()) return A().toast('Elige primero quién eres.');
+  const p = { id: db.nuevoId(), u: A().yo(), nombre: r.datos.nombre, marca: r.datos.marca, estilo: r.datos.estilo, pais: r.datos.pais, nota: $('ppNota').value.trim().slice(0, 140), creado: Date.now(), editado: Date.now() };
+  try { await sync.poner('porProbar', p); } catch (e) { return A().toast('No se ha podido guardar.'); }
   estado.porProbar.push(p);
   $('capaPP').classList.remove('on');
   A().vibrar('medio'); A().toast(`📝 ${p.nombre} apuntada para probar`);
@@ -357,7 +387,7 @@ function enlazar() {
       return;
     }
     if (b.dataset.quitarpp) {
-      db.borrar('porProbar', b.dataset.quitarpp).then(() => { estado.porProbar = estado.porProbar.filter((x) => x.id !== b.dataset.quitarpp); pintar(); });
+      sync.quitar('porProbar', b.dataset.quitarpp, A().yo()).then(() => { estado.porProbar = estado.porProbar.filter((x) => x.id !== b.dataset.quitarpp); pintar(); });
       return;
     }
     if (b.id === 'dMas') { estado.limite += 40; return pintar(); }
@@ -413,8 +443,9 @@ function enlazar() {
   $('fAProbar').addEventListener('click', async () => {
     const r = validar({ nombre: $('fNombre').value, marca: $('fMarca').value, estilo: $('fEstilo').value, pais: $('fPais').value });
     if (!r.ok) { $('fErr-nombre').textContent = r.errores.nombre; return; }
-    const p = { id: db.nuevoId(), nombre: r.datos.nombre, marca: r.datos.marca, estilo: r.datos.estilo, pais: r.datos.pais, nota: '', creado: Date.now() };
-    await db.guardar('porProbar', p); estado.porProbar.push(p);
+    if (!A().yo()) return A().toast('Elige primero quién eres.');
+    const p = { id: db.nuevoId(), u: A().yo(), nombre: r.datos.nombre, marca: r.datos.marca, estilo: r.datos.estilo, pais: r.datos.pais, nota: '', creado: Date.now(), editado: Date.now() };
+    await sync.poner('porProbar', p); estado.porProbar.push(p);
     cerrarForm(); A().toast(`📝 ${p.nombre} a «Quiero probar»`); pintar();
   });
 
@@ -435,3 +466,17 @@ function enlazar() {
 }
 
 export const datos = () => estado;
+
+/* Resumen para la hoja de perfil. */
+export function resumen() {
+  const l = estado.cervezas;
+  const notas = l.filter((c) => c.nota);
+  const cuenta = {};
+  for (const c of l) if (c.estilo) cuenta[c.estilo] = (cuenta[c.estilo] || 0) + 1;
+  return {
+    total: l.length, distintas: new Set(l.map((c) => norm(c.nombre))).size,
+    paises: new Set(l.map((c) => c.pais).filter(Boolean)).size, favoritas: l.filter((c) => c.favorita).length,
+    media: notas.length ? Math.round(notas.reduce((a, c) => a + c.nota, 0) / notas.length * 10) / 10 : null,
+    estilo: Object.keys(cuenta).sort((a, b) => cuenta[b] - cuenta[a])[0] || null,
+  };
+}

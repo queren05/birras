@@ -248,6 +248,7 @@
     if ($('capaFix').classList.contains('on')) pintarFix();
     pintarTienda(U);
     pintarCola();
+    if ($('capaPerfil').classList.contains('on')) pintarPerfil();
   }
 
   /* ================= La noche: gráfico, récords, historial ================= */
@@ -338,12 +339,6 @@
     document.querySelectorAll('.zona').forEach((x) => x.classList.toggle('on', +x.dataset.k === grafSel));
     if (grafSel === null) $('tip').hidden = true; else { mostrarTip(grafSel); vibrar('suave'); }
   });
-  $('cerrarNoche').onclick = async () => {
-    if (!yo) return pedirSilla();
-    if (!await preguntar('¿Cerrar la noche?', 'El bote vuelve a cero para todos y el resumen se guarda en «Noches anteriores». Las fichas se conservan. No se puede deshacer.', 'Cerrar la noche', true)) return;
-    publicar({ k: 'noche', u: yo });
-    pila = []; guardarPila();
-  };
   $('version').textContent = `Casino Birras · ${window.BIRRAS_VERSION === 'web' ? 'web' : 'app ' + window.BIRRAS_VERSION}`;
 
   function pintarTienda(U) {
@@ -503,8 +498,34 @@
   };
   $('broncaYa').onclick = () => { $('capaBronca').classList.remove('on'); apuntar(yo, 'cerveza', 1); sonar('moneda'); vibrar('medio'); };
   $('broncaLuego').onclick = () => { $('capaBronca').classList.remove('on'); broncaHasta = ahora() + 300; };
-  $('yoBtn').onclick = pedirSilla;
-  $('cambiarBtn').onclick = pedirSilla;
+  $('yoBtn').onclick = () => (yo ? abrirPerfil() : pedirSilla());
+  $('cambiarBtn').onclick = async () => {
+    if (yo && !await preguntar('¿Cambiar de jugador?', `Ahora eres ${B.NOMBRES[yo]}. Si cambias, todo lo que apuntes desde este móvil contará para otra persona.`, 'Cambiar', true)) return;
+    pedirSilla(true);
+  };
+
+  /* ================= Perfil personal ================= */
+  function abrirPerfil() { pintarPerfil(); $('capaPerfil').classList.add('on'); vibrar('suave'); }
+  $('perCerrar').onclick = () => $('capaPerfil').classList.remove('on');
+  $('capaPerfil').addEventListener('click', (e) => { if (e.target === $('capaPerfil')) $('capaPerfil').classList.remove('on'); });
+  function pintarPerfil() {
+    if (!yo) return;
+    const U = S ? S.users[yo] : null;
+    $('perAv').innerHTML = av(yo, 'enorme');
+    $('perNom').textContent = B.NOMBRES[yo];
+    const st = (v, l) => `<div class="glass"><b class="num">${v}</b><span>${l}</span></div>`;
+    if (U) {
+      const orden = B.USERS.slice().sort((a, b) => B.puntos(S.users[b]) - B.puntos(S.users[a]));
+      $('perSub').textContent = `${orden.indexOf(yo) + 1}º de ${B.USERS.length} esta noche · ${U.fichas} fichas`;
+      $('perNoche').innerHTML = st(B.fmtPts(B.puntos(U)), 'puntos') + st(U.c.cerveza, 'cervezas') + st(U.c.cubata, 'cubatas') + st(U.c.chupito, 'chupitos') + st(U.c.cigarro, 'cigarros') +
+        st(U.maxCombo > 1 ? 'x' + Math.min(U.maxCombo, B.COMBO_MAX) : '—', 'mejor combo') + st(U.castigos || 0, 'castigos 💀') + st(B.horasTexto(Math.max(0, ahora() - U.ultCerveza)), 'desde la última');
+    } else { $('perSub').textContent = 'Conectando con la mesa…'; $('perNoche').innerHTML = ''; }
+    const D = window.BirrasDiario && window.BirrasDiario.resumen();
+    $('perDiario').innerHTML = D ? st(D.total, 'registradas') + st(D.distintas, 'distintas') + st(D.paises, 'países') + st(D.media ? D.media.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' ★' : '—', 'nota media') +
+      st(D.estilo || '—', 'estilo favorito') + st(D.favoritas, 'favoritas') : '<div class="vacio">Cargando…</div>';
+    $('sonidoVal').textContent = sonido ? 'Sí' : 'No';
+  }
+  $('sonidoFila').onclick = () => { sonido = !sonido; guardar('birras-sonido', sonido ? 'si' : 'no'); iconoSonido(); pintarPerfil(); };
   const iconoSonido = () => { $('sonidoBtn').innerHTML = sonido
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>'
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>'; };
@@ -521,7 +542,8 @@
   $('ntfyLink').href = `${B.NTFY}/${B.TOPIC_AVISOS}`;
   $('ntfyTxt').textContent = `App ntfy → suscríbete a ${B.TOPIC_AVISOS}`;
 
-  function pedirSilla() {
+  function pedirSilla(cancelable = false) {
+    $('sillaCancelar').hidden = !cancelable;
     $('sillas').innerHTML = B.USERS.map((u) => {
       const U = S && S.users[u];
       const n = U ? B.fmtPts(B.puntos(U)) : 0;
@@ -529,10 +551,13 @@
     }).join('');
     $('capaEntrar').classList.add('on');
   }
-  $('sillas').addEventListener('click', (e) => {
+  $('sillaCancelar').onclick = () => $('capaEntrar').classList.remove('on');
+  $('sillas').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-silla]');
     if (!b) return;
+    if (yo && b.dataset.silla !== yo && !await preguntar(`¿Seguro que eres ${B.NOMBRES[b.dataset.silla]}?`, 'Lo que apuntes desde este móvil contará para esa persona.', 'Sí, soy yo', true)) return;
     yo = b.dataset.silla; guardar('birras-yo', yo);
+    document.dispatchEvent(new CustomEvent('birras:yo'));
     $('capaEntrar').classList.remove('on');
     $('tienda').dataset.h = '';
     pintar();

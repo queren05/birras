@@ -19,7 +19,7 @@
 
 <div class="app" id="app">
   <header class="cabecera glass">
-    <button class="yo-btn pulsable" id="yoBtn" aria-label="Cambiar de jugador"><span class="av" id="yoAv">?</span><span id="yoNom">Entrar</span></button>
+    <button class="yo-btn pulsable" id="yoBtn" aria-label="Tu perfil"><span class="av" id="yoAv">?</span><span id="yoNom">Entrar</span></button>
     <div class="marca"><span>Casino Birras</span><i class="punto-con" id="puntoCon" title="Conexión"></i></div>
     <button class="icono-btn pulsable" id="sonidoBtn" aria-label="Sonido"></button>
   </header>
@@ -28,6 +28,7 @@
   <section class="vista" data-vista="diario" id="vistaDiario">
     <h1 class="titulo-vista">Mi diario</h1>
     <div class="d-resumen glass" id="dResumen"></div>
+    <p class="d-sync" id="dSync">☁️ Conectando con el servidor…</p>
     <div class="modo glass">
       <button class="modo-b on" data-dvista="probadas">Probadas</button>
       <button class="modo-b" data-dvista="porprobar">Quiero probar<span id="dPpN"></span></button>
@@ -149,7 +150,6 @@
       <h3 class="etq">Noches anteriores</h3>
       <div id="noches"></div>
     </div>
-    <button class="cerrar-noche pulsable" id="cerrarNoche">🌅 Cerrar la noche y empezar otra</button>
   </section>
 
   <!-- ===================== MESA ===================== -->
@@ -161,16 +161,31 @@
       <div id="feedLargo"></div>
     </div>
     <div class="ajustes glass">
-      <button class="fila-aj" id="avisosBtn"><span class="e">🔔</span><div><b>Avisos en este móvil</b><small>Con la app abierta</small></div><span class="val" id="avisosVal"></span></button>
-      <a class="fila-aj" id="ntfyLink" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><span class="e">📣</span><div><b>Insultos con la app cerrada</b><small id="ntfyTxt"></small></div><span class="val">›</span></a>
-      <div class="fila-aj" style="padding-bottom:6px"><span class="e">🎨</span><div><b>Tema</b><small id="temaTxt">Solo cambia en tu móvil</small></div></div>
-      <div class="temas" id="temas"></div>
-      <button class="fila-aj" id="miFotoBtn"><span class="e">📷</span><div><b>Tu foto de perfil</b><small>La ven todos. Para cambiar la de otro, tócalo en la lista</small></div><span class="val">›</span></button>
       <button class="fila-aj" id="cambiarBtn"><span class="e">🪑</span><div><b>Cambiar de jugador</b><small id="cambiarTxt"></small></div><span class="val">›</span></button>
     </div>
     <p class="conexion" id="conexion">Conectando con la mesa…</p>
     <p class="version" id="version"></p>
   </section>
+</div>
+
+<div class="capa hoja-abajo" id="capaPerfil" role="dialog" aria-modal="true" aria-labelledby="perNom">
+  <div class="hoja glass perfil">
+    <button class="cerrar-x" id="perCerrar" aria-label="Cerrar">✕</button>
+    <div class="per-cab"><span id="perAv"></span><div><h2 id="perNom"></h2><span class="sub" id="perSub"></span><div class="foto-acc izq"><button class="pulsable" id="miFotoBtn">📷 Cambiar foto</button></div></div></div>
+    <div class="etq">Esta noche</div>
+    <div class="per-stats" id="perNoche"></div>
+    <div class="etq">Tu diario</div>
+    <div class="per-stats" id="perDiario"></div>
+    <div class="etq">Ajustes</div>
+    <div class="ajustes glass">
+      <button class="fila-aj" id="avisosBtn"><span class="e">🔔</span><div><b>Avisos en este móvil</b><small>Con la app abierta</small></div><span class="val" id="avisosVal"></span></button>
+      <a class="fila-aj" id="ntfyLink" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><span class="e">📣</span><div><b>Insultos con la app cerrada</b><small id="ntfyTxt"></small></div><span class="val">›</span></a>
+      <div class="fila-aj" style="padding-bottom:6px"><span class="e">🎨</span><div><b>Tema</b><small id="temaTxt">Solo cambia en tu móvil</small></div></div>
+      <div class="temas" id="temas"></div>
+      <button class="fila-aj" id="sonidoFila"><span class="e">🔊</span><div><b>Sonido</b><small>Efectos al apuntar, combos y casino</small></div><span class="val" id="sonidoVal"></span></button>
+    </div>
+    <p class="responsable">Para cambiar de jugador ve a la pestaña Mesa.</p>
+  </div>
 </div>
 
 <button class="fab pulsable" id="fab" aria-label="Añadir cerveza"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -188,6 +203,7 @@
     <h2 id="entrarT">¿Quién eres?</h2>
     <p class="sub">Elige tu silla. Todo lo que apuntes va al bote de la mesa.</p>
     <div id="sillas" style="display:grid;gap:10px"></div>
+    <button class="txt-btn" id="sillaCancelar" hidden>Cancelar</button>
   </div>
 </div>
 

@@ -511,3 +511,21 @@ textarea{resize:vertical;min-height:70px}
 .det-acc .peligro{background:rgba(255,59,71,.3)}
 .edad{z-index:90;background:var(--noche-t)}
 .edad .hoja{gap:12px}
+
+/* ---------- Perfil ---------- */
+.perfil{gap:12px}
+.per-cab{display:flex;align-items:center;gap:16px;margin-top:4px}
+.per-cab h2{font-family:var(--fr);font-weight:900;font-size:30px;line-height:1.05}
+.per-cab .sub{display:block;margin-top:2px}
+.av.enorme{width:84px;height:84px;font-size:34px}
+.foto-acc.izq{justify-content:flex-start;margin-top:8px}
+.foto-acc.izq button{padding:7px 13px;font-size:14px}
+.per-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.per-stats > div{border-radius:18px;padding:10px 6px;text-align:center;display:grid;gap:1px}
+.per-stats b{font-family:var(--fr);font-weight:900;font-size:19px;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.per-stats span{font-size:11.5px;color:var(--txt2)}
+.perfil .etq{margin-top:4px}
+
+.d-sync{text-align:center;font-size:13px;color:var(--txt2);margin:-4px 0 -2px}
+.d-sync.mal{color:#ffb3b8}
+[data-tema="claro"] .d-sync.mal{color:#c0162b}
