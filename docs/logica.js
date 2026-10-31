@@ -15,10 +15,10 @@
   const NOMBRES = { jorlo: 'Jorlo', alvaro: 'Álvaro', david: 'David', bianca: 'Bianca', noelia: 'Noelia', eider: 'Eider', aitor: 'Aitor' };
 
   const TIPOS = {
-    cerveza: { un: 'una cerveza', nombre: 'Cerveza', plural: 'Cervezas', ico: '🍺', fichas: 10, bebida: true },
-    cubata: { un: 'un cubata', nombre: 'Cubata', plural: 'Cubatas', ico: '🥃', fichas: 25, bebida: true },
-    chupito: { un: 'un chupito', nombre: 'Chupito', plural: 'Chupitos', ico: '🥂', fichas: 15, bebida: true },
-    cigarro: { un: 'un cigarro', nombre: 'Cigarro', plural: 'Cigarros', ico: '🚬', fichas: 5, bebida: false },
+    cerveza: { pts: 1, un: 'una cerveza', nombre: 'Cerveza', plural: 'Cervezas', ico: '🍺', fichas: 10, bebida: true },
+    cubata: { pts: 2, un: 'un cubata', nombre: 'Cubata', plural: 'Cubatas', ico: '🥃', fichas: 25, bebida: true },
+    chupito: { pts: 0.5, un: 'un chupito', nombre: 'Chupito', plural: 'Chupitos', ico: '🥂', fichas: 15, bebida: true },
+    cigarro: { pts: 0.2, un: 'un cigarro', nombre: 'Cigarro', plural: 'Cigarros', ico: '🚬', fichas: 5, bebida: false },
   };
 
   const COMBO_VENTANA = 20 * 60;   // bebidas a menos de 20 min encadenan combo
@@ -89,6 +89,12 @@
     s.feed.unshift({ t: time, u, ico, txt });
     if (s.feed.length > 15) s.feed.length = 15;
   }
+
+  /* Puntos de borrachera: cerveza 1, cubata 2, chupito 0,5, cigarro 0,2. */
+  function puntos(U) {
+    return Math.round(Object.keys(TIPOS).reduce((n, t) => n + U.c[t] * TIPOS[t].pts, 0) * 10) / 10;
+  }
+  const fmtPts = (n) => (Math.round(n * 10) / 10).toLocaleString('es-ES', { maximumFractionDigits: 1 });
 
   function totalGrupo(s, tipo = 'cerveza') {
     return USERS.reduce((n, u) => n + s.users[u].c[tipo], 0);
@@ -270,7 +276,7 @@
   return {
     TOPIC, TOPIC_AVISOS, NTFY, USERS, NOMBRES, TIPOS, TIENDA, SIMBOLOS, SLOT_COSTE,
     COMBO_VENTANA, COMBO_MAX, HORA_SECA,
-    estadoInicial, normalizar, aplicar, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
+    estadoInicial, normalizar, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
     secos, insulto, horasTexto, clon,
   };
 });

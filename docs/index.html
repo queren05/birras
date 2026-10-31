@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="icono.png">
 <link rel="icon" href="icono.png">
 <link rel="stylesheet" href="estilo.css">
+<script>try{var t=localStorage.getItem("birras-tema");if(t)document.documentElement.dataset.tema=t}catch(e){}</script>
 </head>
 <body>
 <div class="fondo" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i><canvas id="burbujas"></canvas><div class="grano"></div></div>
@@ -29,6 +30,7 @@
       <div class="etq">El bote de la mesa</div>
       <div class="mega num" id="mega">0</div>
       <div class="mega-l" id="megaL">cervezas</div>
+      <div class="pts-bote">🏆 <span class="num" id="ptsBote">0</span> puntos en el bote</div>
       <div class="chips">
         <div class="chip"><b class="num" id="tCubata">0</b><span>🥃 cubatas</span></div>
         <div class="chip"><b class="num" id="tChupito">0</b><span>🥂 chupitos</span></div>
@@ -44,11 +46,17 @@
 
     <div class="bebidas">
       <button class="beber cerveza glass pulsable" data-tipo="cerveza">
-        <span class="e">🍺</span><span><span class="n">Una cerveza</span><br><span class="f" id="fCerveza">+10 fichas</span></span><span class="mas">+</span>
+        <span class="e">🍺</span><span><span class="n">Una cerveza</span><br><span class="f" id="fCerveza">+1 punto · +10 fichas</span></span><span class="mas">+</span>
       </button>
-      <button class="beber glass pulsable" data-tipo="cubata"><span class="e">🥃</span><span class="n">Cubata</span><span class="f">+25</span></button>
-      <button class="beber glass pulsable" data-tipo="chupito"><span class="e">🥂</span><span class="n">Chupito</span><span class="f">+15</span></button>
-      <button class="beber glass pulsable" data-tipo="cigarro"><span class="e">🚬</span><span class="n">Cigarro</span><span class="f">+5</span></button>
+      <button class="beber glass pulsable" data-tipo="cubata"><span class="e">🥃</span><span class="n">Cubata</span><span class="f">+2 puntos</span></button>
+      <button class="beber glass pulsable" data-tipo="chupito"><span class="e">🥂</span><span class="n">Chupito</span><span class="f">+0,5 puntos</span></button>
+      <button class="beber glass pulsable" data-tipo="cigarro"><span class="e">🚬</span><span class="n">Cigarro</span><span class="f">+0,2 puntos</span></button>
+    </div>
+
+    <div class="marcador glass">
+      <div class="cab"><span class="etq">Marcador</span><span>🍺 1 · 🥃 2 · 🥂 0,5 · 🚬 0,2</span></div>
+      <div id="marcador"></div>
+      <div class="ley-tipos"><span><i class="t-cerveza"></i>cervezas</span><span><i class="t-cubata"></i>cubatas</span><span><i class="t-chupito"></i>chupitos</span><span><i class="t-cigarro"></i>cigarros</span></div>
     </div>
 
     <div class="mio glass">
@@ -95,6 +103,8 @@
     <div class="ajustes glass">
       <button class="fila-aj" id="avisosBtn"><span class="e">🔔</span><div><b>Avisos en este móvil</b><small>Con la app abierta</small></div><span class="val" id="avisosVal"></span></button>
       <a class="fila-aj" id="ntfyLink" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><span class="e">📣</span><div><b>Insultos con la app cerrada</b><small id="ntfyTxt"></small></div><span class="val">›</span></a>
+      <div class="fila-aj" style="padding-bottom:6px"><span class="e">🎨</span><div><b>Tema</b><small id="temaTxt">Solo cambia en tu móvil</small></div></div>
+      <div class="temas" id="temas"></div>
       <button class="fila-aj" id="cambiarBtn"><span class="e">🪑</span><div><b>Cambiar de jugador</b><small id="cambiarTxt"></small></div><span class="val">›</span></button>
     </div>
     <p class="conexion" id="conexion">Conectando con la mesa…</p>

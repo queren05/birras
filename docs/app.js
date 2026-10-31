@@ -99,16 +99,27 @@
     if (megaAntes !== null && cerv > megaAntes) { mega.classList.remove('salta'); void mega.offsetWidth; mega.classList.add('salta'); }
     megaAntes = cerv;
     $('megaL').textContent = cerv === 1 ? 'cerveza' : 'cervezas';
+    const ptsDe = (u) => B.puntos(S.users[u]);
+    $('ptsBote').textContent = B.fmtPts(B.USERS.reduce((n, u) => n + ptsDe(u), 0));
     $('tCubata').textContent = tot('cubata');
     $('tChupito').textContent = tot('chupito');
     $('tCigarro').textContent = tot('cigarro');
-    const aporte = (u) => Object.values(S.users[u].c).reduce((a, b) => a + b, 0);
+    const aporte = (u) => ptsDe(u);
     const todo = B.USERS.reduce((n, u) => n + aporte(u), 0);
     $('barraRep').innerHTML = todo ? B.USERS.map((u) => `<i class="c-${u}" style="width:${aporte(u) / todo * 100}%"></i>`).join('') : '';
-    $('leyenda').innerHTML = B.USERS.map((u) => `<span><i class="c-${u}"></i>${B.NOMBRES[u]} ${aporte(u)}</span>`).join('');
+    $('leyenda').innerHTML = B.USERS.filter((u) => aporte(u) > 0).map((u) => `<span><i class="c-${u}"></i>${B.NOMBRES[u]} ${B.fmtPts(aporte(u))}</span>`).join('') || '<span>Nadie ha puntuado todavía</span>';
 
     // Ranking
     const orden = B.USERS.slice().sort((a, b) => aporte(b) - aporte(a) || S.users[b].fichas - S.users[a].fichas);
+    const lider = Math.max(1, ...B.USERS.map(aporte));
+    $('marcador').innerHTML = orden.map((u, i) => {
+      const U = S.users[u], p = aporte(u);
+      const seg = Object.keys(B.TIPOS).map((t) => U.c[t] ? `<i class="t-${t}" style="width:${U.c[t] * B.TIPOS[t].pts / lider * 100}%"></i>` : '').join('');
+      const ic = Object.keys(B.TIPOS).filter((t) => U.c[t]).map((t) => `${B.TIPOS[t].ico} ${U.c[t]}`).join('  ') || 'sin estrenar';
+      return `<div class="jug${u === yo ? ' yo' : ''}${p ? '' : ' cero'}"><span class="av ${u}">${inicial(u)}</span>
+        <div class="info"><div class="linea"><b>${B.NOMBRES[u]}</b>${i === 0 && p ? '<span class="corona">👑</span>' : ''}<span class="ic">${ic}</span></div><div class="barra">${seg}</div></div>
+        <div class="pts num">${B.fmtPts(p)}<small>puntos</small></div></div>`;
+    }).join('');
     const secos = new Set(B.secos(S, now).map((x) => x.u));
     $('ranking').innerHTML = orden.map((u, i) => {
       const U = S.users[u], seg = Math.max(0, now - U.ultCerveza);
@@ -118,7 +129,7 @@
           <div class="det num"><span>🍺 ${U.c.cerveza}</span><span>🥃 ${U.c.cubata}</span><span>🥂 ${U.c.chupito}</span><span>🚬 ${U.c.cigarro}</span></div>
           <div class="hace${secos.has(u) ? ' mal' : ''}">${secos.has(u) ? 'Seco desde hace ' : 'Última cerveza hace '}${B.horasTexto(seg)} · ${U.fichas} fichas${U.castigos ? ` · 💀 ${U.castigos}` : ''}</div>
         </div>
-        <div class="tot num">${aporte(u)}<small>al bote</small></div>
+        <div class="tot num">${B.fmtPts(aporte(u))}<small>puntos</small></div>
       </div>`;
     }).join('');
 
@@ -137,7 +148,7 @@
     $('misFichas').textContent = U.fichas;
     const enCombo = now - U.ultBebida <= B.COMBO_VENTANA && U.combo >= 1;
     const sigMult = enCombo ? Math.min(U.combo + 1, B.COMBO_MAX) : 1;
-    $('fCerveza').textContent = `+${10 * sigMult * (now < S.happy ? 2 : 1) * (U.racha ? 2 : 1)} fichas${sigMult > 1 ? ` · combo x${sigMult}` : ''}`;
+    $('fCerveza').textContent = `+1 punto · +${10 * sigMult * (now < S.happy ? 2 : 1) * (U.racha ? 2 : 1)} fichas${sigMult > 1 ? ` · combo x${sigMult}` : ''}`;
     $('pills').innerHTML = [
       enCombo && U.combo >= 2 ? `<span class="pill combo">Combo x${Math.min(U.combo, B.COMBO_MAX)} · ${Math.ceil((B.COMBO_VENTANA - (now - U.ultBebida)) / 60)} min</span>` : '',
       U.racha ? `<span class="pill racha">🔥 x2 · ${U.racha}</span>` : '',
@@ -267,8 +278,8 @@
   function pedirSilla() {
     $('sillas').innerHTML = B.USERS.map((u) => {
       const U = S && S.users[u];
-      const n = U ? Object.values(U.c).reduce((a, b) => a + b, 0) : 0;
-      return `<button class="silla pulsable" data-silla="${u}"><span class="av ${u}">${inicial(u)}</span><b>${B.NOMBRES[u]}</b><span>${n} al bote</span></button>`;
+      const n = U ? B.fmtPts(B.puntos(U)) : 0;
+      return `<button class="silla pulsable" data-silla="${u}"><span class="av ${u}">${inicial(u)}</span><b>${B.NOMBRES[u]}</b><span>${n} puntos</span></button>`;
     }).join('');
     $('capaEntrar').classList.add('on');
   }
@@ -282,6 +293,24 @@
     flotante(`Hola, ${B.NOMBRES[yo]}`, 'hagan juego');
     desbloquearAudio(); sonar('compra'); vibrar('medio');
   });
+
+  /* ================= Temas (cada móvil el suyo) ================= */
+  const TEMAS = [
+    ['birra', 'Birra', 'linear-gradient(135deg,#ffb21a,#ff3d81)'], ['neon', 'Neón', 'linear-gradient(135deg,#ff00d4,#00e5ff)'],
+    ['oceano', 'Océano', 'linear-gradient(135deg,#00c2ff,#3a5bff)'], ['toxico', 'Tóxico', 'linear-gradient(135deg,#b6ff00,#00b3ff)'],
+    ['fresa', 'Fresa', 'linear-gradient(135deg,#ffb3c7,#ff2e5e)'], ['noche', 'Noche', 'linear-gradient(135deg,#30305a,#08080f)'],
+  ];
+  function ponerTema(t) {
+    if (t === 'birra') delete document.documentElement.dataset.tema; else document.documentElement.dataset.tema = t;
+    guardar('birras-tema', t);
+    const T = TEMAS.find((x) => x[0] === t);
+    $('temaTxt').textContent = `${T[1]} · solo cambia en tu móvil`;
+    $('temas').innerHTML = TEMAS.map(([k, n, g]) => `<button class="tema pulsable${k === t ? ' on' : ''}" data-tema="${k}" style="background:${g}" aria-label="Tema ${n}"></button>`).join('');
+    const m = document.querySelector('meta[name=theme-color]');
+    if (m) m.content = getComputedStyle(document.documentElement).getPropertyValue('--noche-t').trim();
+  }
+  $('temas').addEventListener('click', (e) => { const b = e.target.closest('[data-tema]'); if (b) { ponerTema(b.dataset.tema); vibrar('suave'); sonar('compra'); } });
+  ponerTema(TEMAS.some((x) => x[0] === leer('birras-tema')) ? leer('birras-tema') : 'birra');
 
   /* ================= Tragaperras ================= */
   const ALTO = 92;
