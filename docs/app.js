@@ -310,6 +310,7 @@
     if ($('capaFix').classList.contains('on')) pintarFix();
     pintarTienda(U);
     pintarCola();
+    pintarApuesta();
     if ($('capaPerfil').classList.contains('on')) pintarPerfil();
   }
 
@@ -704,11 +705,159 @@
     }, 2300);
   }
 
+  /* ================= Casino: ruleta, dados y rasca y gana ================= */
+  let juego = ['slot', 'ruleta', 'dados', 'rasca'].includes(leer('birras-juego')) ? leer('birras-juego') : 'slot';
+  let cantAp = +(leer('birras-apuesta') || 10);
+  let apRuleta = null, jugando = false;
+  function irJuego(j) {
+    juego = j; guardar('birras-juego', j);
+    document.querySelectorAll('.juego-b').forEach((b) => b.classList.toggle('on', b.dataset.juego === j));
+    document.querySelectorAll('.panel-juego').forEach((p) => { p.hidden = p.dataset.panel !== j; });
+    $('apuesta').hidden = j === 'slot' || j === 'rasca';
+    if (j === 'ruleta') dibujarRuleta();
+  }
+  document.querySelector('.juegos').addEventListener('click', (e) => { const b = e.target.closest('[data-juego]'); if (b) { irJuego(b.dataset.juego); vibrar('suave'); } });
+  function pintarApuesta() {
+    const f = yo && S ? S.users[yo].fichas : 0;
+    const ops = [5, 10, 25, 50, 100, 250].filter((x) => x <= Math.max(f, 5));
+    if (cantAp > f && f >= B.APUESTA_MIN) cantAp = Math.max(...ops.filter((x) => x <= f), B.APUESTA_MIN);
+    $('fichasAp').innerHTML = ops.map((x) => `<button class="ficha-ap${x === cantAp ? ' on' : ''}" data-cant="${x}"><span>${x}</span></button>`).join('') +
+      (f >= B.APUESTA_MIN ? `<button class="ficha-ap todo${cantAp === f ? ' on' : ''}" data-cant="${f}">Todo ${f}</button>` : '');
+  }
+  $('fichasAp').addEventListener('click', (e) => { const b = e.target.closest('[data-cant]'); if (!b) return; cantAp = +b.dataset.cant; guardar('birras-apuesta', String(cantAp)); pintarApuesta(); vibrar('suave'); sonar('moneda'); });
+  function puedeApostar() {
+    if (!yo || !S) { pedirSilla(); return false; }
+    if (jugando) return false;
+    const f = S.users[yo].fichas;
+    if (f < B.APUESTA_MIN) { toast('Sin fichas no hay juego. Bebe algo para ganar más.'); return false; }
+    if (cantAp > f) { toast(`Solo tienes ${f} fichas.`); return false; }
+    return true;
+  }
+  const azar = (n) => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; };
+
+  /* --- Ruleta europea --- */
+  const ORDEN_RULETA = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+  let ruletaDibujada = false, giroActual = 0;
+  function dibujarRuleta() {
+    if (ruletaDibujada) return; ruletaDibujada = true;
+    const c = $('ruletaLienzo'), x = c.getContext('2d'), R = c.width / 2, n = ORDEN_RULETA.length, a = (Math.PI * 2) / n;
+    x.translate(R, R);
+    ORDEN_RULETA.forEach((num, i) => {
+      const a0 = -Math.PI / 2 + i * a - a / 2;
+      x.beginPath(); x.moveTo(0, 0); x.arc(0, 0, R - 6, a0, a0 + a); x.closePath();
+      x.fillStyle = num === 0 ? '#0f8a4f' : B.colorRuleta(num) === 'rojo' ? '#c8102e' : '#141414'; x.fill();
+      x.strokeStyle = 'rgba(255,215,120,.55)'; x.lineWidth = 2; x.stroke();
+      x.save(); x.rotate(a0 + a / 2); x.translate(R - 40, 0); x.rotate(Math.PI / 2);
+      x.fillStyle = '#fff'; x.font = 'bold 24px -apple-system,system-ui,sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(String(num), 0, 0); x.restore();
+    });
+    x.beginPath(); x.arc(0, 0, R - 70, 0, Math.PI * 2); x.fillStyle = '#5a3412'; x.fill();
+    const g = x.createRadialGradient(-20, -20, 10, 0, 0, R - 70); g.addColorStop(0, '#e2b45a'); g.addColorStop(1, '#6b3d12');
+    x.beginPath(); x.arc(0, 0, R - 82, 0, Math.PI * 2); x.fillStyle = g; x.fill();
+    x.beginPath(); x.arc(0, 0, R - 4, 0, Math.PI * 2); x.strokeStyle = '#d9a23a'; x.lineWidth = 8; x.stroke();
+    $('numeros').innerHTML = `<button class="num-b verde" data-num="0">0</button>` + Array.from({ length: 36 }, (_, i) => i + 1)
+      .map((nn) => `<button class="num-b ${B.colorRuleta(nn)}" data-num="${nn}">${nn}</button>`).join('');
+  }
+  function elegirApRuleta(ap) {
+    apRuleta = ap;
+    document.querySelectorAll('[data-ap],[data-num]').forEach((b) => b.classList.toggle('sel', ap && ((b.dataset.ap && ap.tipo === b.dataset.ap) || (ap.tipo === 'n' && +b.dataset.num === ap.n && b.dataset.num !== undefined))));
+    $('ruletaRes').textContent = ap ? `Apuestas ${cantAp} a ${B.APUESTAS_RULETA[ap.tipo].nombre(ap.n)}` : 'Hagan juego.';
+  }
+  document.querySelector('[data-panel="ruleta"]').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ap],[data-num]'); if (!b) return;
+    elegirApRuleta(b.dataset.ap ? { tipo: b.dataset.ap } : { tipo: 'n', n: +b.dataset.num }); vibrar('suave');
+  });
+  $('girar').onclick = () => {
+    if (!apRuleta) return toast('Elige primero a qué apuestas.');
+    if (!puedeApostar()) return;
+    const r = azar(37), cant = cantAp, ap = apRuleta;
+    publicar({ k: 'ruleta', u: yo, r, ap, cant });
+    jugando = true; sonar('palanca'); vibrar('medio');
+    $('ruletaRes').textContent = 'No va más…';
+    const i = ORDEN_RULETA.indexOf(r), paso = 360 / 37;
+    giroActual += 360 * 5 + ((360 - (i * paso)) - (giroActual % 360) + 360) % 360;
+    const lienzo = $('ruletaLienzo');
+    lienzo.style.transition = 'transform 4.2s cubic-bezier(.12,.6,.1,1)';
+    lienzo.style.transform = `rotate(${giroActual}deg)`;
+    $('ruletaBola').classList.remove('gira'); void $('ruletaBola').offsetWidth; $('ruletaBola').classList.add('gira');
+    setTimeout(() => {
+      jugando = false;
+      const A = B.APUESTAS_RULETA[ap.tipo], gana = A.gana(r, ap.n), col = B.colorRuleta(r);
+      $('ruletaRes').innerHTML = `<span class="bolita ${col}">${r}</span> ${gana ? `¡Ganas ${cant * A.paga}!` : `Pierdes ${cant}`}`;
+      if (gana) { flotante(`+${cant * A.paga}`, `${r} ${col}`); confeti(ap.tipo === 'n' ? 220 : 60, ['🪙', '💰', '🎡']); sonar('jackpot'); vibrar('fuerte'); }
+      else { sonar('pierde'); vibrar('medio'); }
+      if (r === 0) setTimeout(() => { flotante('¡CERO!', 'toda la mesa bebe'); temblar(); }, 900);
+    }, 4300);
+  };
+
+  /* --- Dados --- */
+  const CARAS = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+  const pintarDado = (el, n) => { el.innerHTML = Array.from({ length: 9 }, (_, k) => `<i${[[], [4], [0, 8], [0, 4, 8], [0, 2, 6, 8], [0, 2, 4, 6, 8], [0, 2, 3, 5, 6, 8]][n].includes(k) ? ' class="p"' : ''}></i>`).join(''); el.setAttribute('aria-label', CARAS[n]); };
+  pintarDado($('dado0'), 6); pintarDado($('dado1'), 1);
+  document.querySelector('[data-panel="dados"]').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-dados]'); if (!b || !puedeApostar()) return;
+    const r = [1 + azar(6), 1 + azar(6)], cant = cantAp, ap = b.dataset.dados;
+    publicar({ k: 'dados', u: yo, r, ap, cant });
+    jugando = true; vibrar('medio'); sonar('palanca');
+    $('dadosRes').textContent = 'Rodando…';
+    const d0 = $('dado0'), d1 = $('dado1');
+    d0.classList.add('rueda'); d1.classList.add('rueda');
+    const cambio = setInterval(() => { pintarDado(d0, 1 + azar(6)); pintarDado(d1, 1 + azar(6)); }, 90);
+    setTimeout(() => {
+      clearInterval(cambio); d0.classList.remove('rueda'); d1.classList.remove('rueda');
+      pintarDado(d0, r[0]); pintarDado(d1, r[1]); jugando = false;
+      const A = B.APUESTAS_DADOS[ap], suma = r[0] + r[1], gana = A.gana(suma);
+      $('dadosRes').textContent = `${r[0]} + ${r[1]} = ${suma} · ${gana ? `¡ganas ${cant * A.paga}!` : `pierdes ${cant}`}`;
+      if (gana) { flotante(`+${cant * A.paga}`, `suma ${suma}`); confeti(ap === 'siete' ? 160 : 50, ['🎲', '🪙']); sonar(ap === 'siete' ? 'jackpot' : 'combo'); vibrar('fuerte'); }
+      else { sonar('pierde'); }
+      if (r[0] === 1 && r[1] === 1) setTimeout(() => { flotante('🐍', 'ojos de serpiente: chupito'); temblar(); }, 700);
+    }, 1400);
+  });
+
+  /* --- Rasca y gana --- */
+  let rascaActual = null;
+  function pintarCarton(r, destapadas) {
+    $('rascaCarton').innerHTML = (r || Array(6).fill(null)).map((i, k) => `<button class="casilla${destapadas.includes(k) ? ' abierta' : ''}" data-casilla="${k}" ${!r ? 'disabled' : ''}><span>${i === null ? '' : B.SIMBOLOS_RASCA[i]}</span></button>`).join('');
+  }
+  pintarCarton(null, []);
+  $('comprarRasca').onclick = () => {
+    if (!yo || !S) return pedirSilla();
+    if (rascaActual && rascaActual.abiertas.length < 6) return toast('Termina de rascar el que tienes.');
+    if (S.users[yo].fichas < B.RASCA_COSTE) return toast('Te faltan fichas para un rasca.');
+    const r = B.tirarRasca(() => azar(1e6) / 1e6);
+    publicar({ k: 'rasca', u: yo, r });
+    rascaActual = { r, abiertas: [] };
+    pintarCarton(r, []); $('rascaRes').textContent = 'Rasca las seis casillas.'; $('rascarTodo').hidden = false;
+    sonar('compra'); vibrar('medio');
+  };
+  function rascar(k) {
+    if (!rascaActual || rascaActual.abiertas.includes(k)) return;
+    rascaActual.abiertas.push(k);
+    const el = document.querySelector(`[data-casilla="${k}"]`); if (el) el.classList.add('abierta');
+    vibrar('suave'); sonar('moneda');
+    if (rascaActual.abiertas.length === 6) {
+      const p = B.premioRasca(rascaActual.r);
+      $('rascaRes').textContent = p.txt; $('rascarTodo').hidden = true;
+      document.querySelectorAll('.casilla').forEach((c, i) => c.classList.toggle('premio', !!p.simbolo && B.SIMBOLOS_RASCA[rascaActual.r[i]] === p.simbolo));
+      if (p.fichas) { flotante(`+${p.fichas}`, 'rasca y gana'); confeti(p.fichas >= 100 ? 180 : 60, ['🎟️', '🪙', p.simbolo]); sonar('jackpot'); vibrar('fuerte'); }
+      else if (p.castigo) { flotante('💀', 'chupito de castigo'); temblar(); sonar('bronca'); }
+      else sonar('pierde');
+    }
+  }
+  $('rascaCarton').addEventListener('click', (e) => { const b = e.target.closest('[data-casilla]'); if (b) rascar(+b.dataset.casilla); });
+  $('rascarTodo').onclick = () => { for (let k = 0; k < 6; k++) setTimeout(() => rascar(k), k * 140); };
+  irJuego(juego);
+
   /* ================= Animaciones ================= */
   function animar(efectos, mio) {
     for (const e of efectos) {
       const quien = B.NOMBRES[e.u] || '';
-      if (e.k === 'pref') {
+      if (e.k === 'ruleta' || e.k === 'dados' || e.k === 'rasca') {
+        const neto = e.k === 'rasca' ? e.p.fichas - B.RASCA_COSTE : e.neto;
+        if (!mio && neto >= 100) toast(`${e.k === 'ruleta' ? '🎡' : e.k === 'dados' ? '🎲' : '🎟️'}  ${quien} gana ${neto} fichas`);
+        if (!mio && e.k === 'ruleta' && e.cant >= 100 && !e.gana) toast(`💸  ${quien} pierde ${e.cant} en la ruleta`);
+      } else if (e.k === 'cero') {
+        if (!mio) { flotante('¡CERO!', `${quien} lo ha sacado: toda la mesa bebe`); temblar(); sonar('bronca'); vibrar('fuerte'); }
+      } else if (e.k === 'pref') {
         toast(B.principal(e.u) === 'cubata' ? `🥃  A ${B.NOMBRES[e.u]} le cuentan los cubatas` : `🍺  ${B.NOMBRES[e.u]} vuelve a la cerveza`);
       } else if (e.k === 'jugador') {
         toast(e.op === 'alta' ? `🪑  ${B.NOMBRES[e.id]} se sienta en la mesa` : '👋  Un jugador se ha levantado de la mesa');

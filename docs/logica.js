@@ -93,6 +93,48 @@
     return s;
   }
 
+  /* ---------- Juegos de casino ---------- */
+  const ROJOS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+  const colorRuleta = (n) => (n === 0 ? 'verde' : ROJOS.has(n) ? 'rojo' : 'negro');
+  /* «paga» = ganancia neta por ficha apostada (pleno 35 a 1, docena 2 a 1, colores 1 a 1) */
+  const APUESTAS_RULETA = {
+    rojo: { paga: 1, gana: (r) => colorRuleta(r) === 'rojo', nombre: () => 'rojo' },
+    negro: { paga: 1, gana: (r) => colorRuleta(r) === 'negro', nombre: () => 'negro' },
+    par: { paga: 1, gana: (r) => r !== 0 && r % 2 === 0, nombre: () => 'par' },
+    impar: { paga: 1, gana: (r) => r % 2 === 1, nombre: () => 'impar' },
+    d1: { paga: 2, gana: (r) => r >= 1 && r <= 12, nombre: () => '1ª docena' },
+    d2: { paga: 2, gana: (r) => r >= 13 && r <= 24, nombre: () => '2ª docena' },
+    d3: { paga: 2, gana: (r) => r >= 25 && r <= 36, nombre: () => '3ª docena' },
+    n: { paga: 35, gana: (r, n) => r === n, nombre: (n) => `pleno al ${n}` },
+  };
+  const APUESTAS_DADOS = {
+    menor: { paga: 1, gana: (x) => x < 7, nombre: 'menor que 7' },
+    mayor: { paga: 1, gana: (x) => x > 7, nombre: 'mayor que 7' },
+    siete: { paga: 4, gana: (x) => x === 7, nombre: 'siete justo' },
+  };
+  const APUESTA_MIN = 5;
+  /* Cantidad válida para apostar (entera, mínimo 5, sin pasar de lo que tienes) o 0 si no vale */
+  function apostable(U, cant) {
+    return Number.isInteger(cant) && cant >= APUESTA_MIN && cant <= U.fichas ? cant : 0;
+  }
+  const SIMBOLOS_RASCA = ['🍺', '🥃', '🍋', '💀', '💎', '🌿'];
+  const PESOS_RASCA = [5, 4, 5, 2, 1, 3];
+  const RASCA_COSTE = 15;
+  const PREMIOS_RASCA = { '💎': 300, '🍺': 60, '🥃': 80, '🌿': 100, '🍋': 30 };
+  /* Seis casillas; si tres iguales salen, premio de ese símbolo (el mejor si hay varios) */
+  function premioRasca(r) {
+    const cuenta = {};
+    r.forEach((i) => { const x = SIMBOLOS_RASCA[i]; cuenta[x] = (cuenta[x] || 0) + 1; });
+    if ((cuenta['💀'] || 0) >= 3) return { fichas: 0, castigo: true, txt: '💀💀💀 castigo: chupito', simbolo: '💀' };
+    const ganadores = Object.keys(PREMIOS_RASCA).filter((x) => (cuenta[x] || 0) >= 3).sort((a, b) => PREMIOS_RASCA[b] - PREMIOS_RASCA[a]);
+    if (ganadores.length) return { fichas: PREMIOS_RASCA[ganadores[0]], castigo: false, txt: `${ganadores[0].repeat(3)} +${PREMIOS_RASCA[ganadores[0]]}`, simbolo: ganadores[0] };
+    return { fichas: 0, castigo: false, txt: 'nada, a la próxima', simbolo: null };
+  }
+  function tirarRasca(rnd = Math.random) {
+    const total = PESOS_RASCA.reduce((a, b) => a + b, 0);
+    return Array.from({ length: 6 }, () => { let x = rnd() * total; for (let i = 0; i < PESOS_RASCA.length; i++) if ((x -= PESOS_RASCA[i]) < 0) return i; return 0; });
+  }
+
   function premioSlot(r) {
     const s = r.map((i) => SIMBOLOS[i]);
     const [a, b, c] = s;
@@ -285,6 +327,47 @@
       return ef;
     }
 
+    /* ---------- Ruleta europea (0-36) ---------- */
+    if (d.k === 'ruleta' && Number.isInteger(d.r) && d.r >= 0 && d.r <= 36 && d.ap && APUESTAS_RULETA[d.ap.tipo]) {
+      const cant = apostable(U, d.cant);
+      if (!cant) return ef;
+      const A = APUESTAS_RULETA[d.ap.tipo];
+      if (d.ap.tipo === 'n' && !(Number.isInteger(d.ap.n) && d.ap.n >= 0 && d.ap.n <= 36)) return ef;
+      const gana = A.gana(d.r, d.ap.n);
+      const neto = gana ? cant * A.paga : -cant;
+      U.fichas += neto;
+      ef.push({ k: 'ruleta', u, r: d.r, gana, neto, cant, ap: d.ap });
+      feed(s, t, u, '🎡', `${NOMBRES[u]} · ruleta ${d.r} ${colorRuleta(d.r) === 'rojo' ? '🔴' : colorRuleta(d.r) === 'negro' ? '⚫' : '🟢'} · ${A.nombre(d.ap.n)}: ${gana ? `+${neto}` : `−${cant}`}`);
+      if (d.r === 0) { ef.push({ k: 'cero', u }); feed(s, t, u, '🟢', '¡CERO! Toda la mesa bebe un trago'); }
+      return ef;
+    }
+
+    /* ---------- Dados: mayor o menor que 7 ---------- */
+    if (d.k === 'dados' && Array.isArray(d.r) && d.r.length === 2 && d.r.every((x) => Number.isInteger(x) && x >= 1 && x <= 6) && APUESTAS_DADOS[d.ap]) {
+      const cant = apostable(U, d.cant);
+      if (!cant) return ef;
+      const suma = d.r[0] + d.r[1], A = APUESTAS_DADOS[d.ap];
+      const gana = A.gana(suma);
+      const neto = gana ? cant * A.paga : -cant;
+      U.fichas += neto;
+      if (d.r[0] === 1 && d.r[1] === 1) U.castigos++;   // ojos de serpiente: castigo
+      ef.push({ k: 'dados', u, r: d.r, gana, neto, cant, ap: d.ap });
+      feed(s, t, u, '🎲', `${NOMBRES[u]} · dados ${d.r[0]}+${d.r[1]}=${suma} · ${A.nombre}: ${gana ? `+${neto}` : `−${cant}`}${d.r[0] === 1 && d.r[1] === 1 ? ' · 🐍 ojos de serpiente: chupito' : ''}`);
+      return ef;
+    }
+
+    /* ---------- Rasca y gana ---------- */
+    if (d.k === 'rasca' && Array.isArray(d.r) && d.r.length === 6 && d.r.every((i) => Number.isInteger(i) && i >= 0 && i < SIMBOLOS_RASCA.length)) {
+      if (U.fichas < RASCA_COSTE) return ef;
+      U.fichas -= RASCA_COSTE;
+      const p = premioRasca(d.r);
+      U.fichas += p.fichas;
+      if (p.castigo) U.castigos++;
+      ef.push({ k: 'rasca', u, r: d.r, p });
+      feed(s, t, u, '🎟️', `${NOMBRES[u]} · rasca y gana: ${p.txt}`);
+      return ef;
+    }
+
     if (d.k === 'doble' && U.fichas >= 20) {
       const antes = U.fichas;
       U.fichas = d.gana ? antes * 2 : 0;
@@ -446,7 +529,7 @@
   return {
     TOPIC, TOPIC_AVISOS, NTFY, USERS, NOMBRES, TIPOS, TIENDA, SIMBOLOS, SLOT_COSTE,
     COMBO_VENTANA, COMBO_MAX, HORA_SECA,
-    ADMIN, idDe, principal, estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
+    ADMIN, idDe, principal, colorRuleta, APUESTAS_RULETA, APUESTAS_DADOS, APUESTA_MIN, SIMBOLOS_RASCA, RASCA_COSTE, PREMIOS_RASCA, premioRasca, tirarRasca, estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
     secos, insulto, horasTexto, clon,
   };
 });

@@ -102,6 +102,56 @@
   <!-- ===================== CASINO ===================== -->
   <section class="vista" data-vista="casino">
     <h1 class="titulo-vista">Casino</h1>
+    <div class="juegos glass" role="tablist">
+      <button class="juego-b on" data-juego="slot">🎰<span>Tragaperras</span></button>
+      <button class="juego-b" data-juego="ruleta">🎡<span>Ruleta</span></button>
+      <button class="juego-b" data-juego="dados">🎲<span>Dados</span></button>
+      <button class="juego-b" data-juego="rasca">🎟️<span>Rasca</span></button>
+    </div>
+    <div class="apuesta glass" id="apuesta">
+      <span class="etq">Apuesta</span>
+      <div class="fichas-ap" id="fichasAp"></div>
+    </div>
+
+    <div class="panel-juego" data-panel="ruleta" hidden>
+      <div class="ruleta-caja glass">
+        <div class="ruleta-marco"><canvas id="ruletaLienzo" width="560" height="560"></canvas><div class="ruleta-bola" id="ruletaBola"></div><div class="ruleta-puntero"></div></div>
+        <div class="resultado" id="ruletaRes" aria-live="polite">Hagan juego.</div>
+        <div class="tapete">
+          <button class="ap-b rojo" data-ap="rojo">Rojo<small>×2</small></button><button class="ap-b negro" data-ap="negro">Negro<small>×2</small></button>
+          <button class="ap-b" data-ap="par">Par<small>×2</small></button><button class="ap-b" data-ap="impar">Impar<small>×2</small></button>
+          <button class="ap-b" data-ap="d1">1–12<small>×3</small></button><button class="ap-b" data-ap="d2">13–24<small>×3</small></button><button class="ap-b" data-ap="d3">25–36<small>×3</small></button>
+        </div>
+        <div class="etq" style="text-align:center">o un pleno (×36)</div>
+        <div class="numeros" id="numeros"></div>
+        <button class="palanca pulsable" id="girar">Girar la ruleta</button>
+      </div>
+    </div>
+
+    <div class="panel-juego" data-panel="dados" hidden>
+      <div class="dados-caja glass">
+        <div class="dados-mesa"><div class="dado" id="dado0"></div><div class="dado" id="dado1"></div></div>
+        <div class="resultado" id="dadosRes" aria-live="polite">¿Mayor o menor que 7?</div>
+        <div class="tapete tres">
+          <button class="ap-b" data-dados="menor">Menor<small>2–6 · ×2</small></button>
+          <button class="ap-b dorado" data-dados="siete">Siete<small>×5</small></button>
+          <button class="ap-b" data-dados="mayor">Mayor<small>8–12 · ×2</small></button>
+        </div>
+        <p class="sub" style="text-align:center;font-size:13px">🐍 Dos unos = chupito de castigo</p>
+      </div>
+    </div>
+
+    <div class="panel-juego" data-panel="rasca" hidden>
+      <div class="rasca-caja glass">
+        <div class="rasca-carton" id="rascaCarton"></div>
+        <div class="resultado" id="rascaRes" aria-live="polite">Tres iguales y te lo llevas.</div>
+        <div class="premios"><span>💎💎💎 +300</span><span>🌿🌿🌿 +100</span><span>🥃🥃🥃 +80</span><span>🍺🍺🍺 +60</span><span>🍋🍋🍋 +30</span><span>💀💀💀 chupito</span></div>
+        <button class="palanca pulsable" id="comprarRasca">Comprar un rasca · 15 fichas</button>
+        <button class="txt-btn" id="rascarTodo" hidden style="justify-self:center">Rascar todo</button>
+      </div>
+    </div>
+
+    <div class="panel-juego" data-panel="slot">
     <div class="maquina glass">
       <div class="ventana" aria-hidden="true">
         <div class="rodillo"><div class="cinta" id="r0"></div></div>
@@ -111,6 +161,7 @@
       <div class="resultado" id="slotRes" aria-live="polite">Hoy es tu noche. Seguro.</div>
       <button class="palanca pulsable" id="palanca">Tirar · 25 fichas</button>
       <div class="premios"><span>7️⃣7️⃣7️⃣ +500</span><span>🍺🍺🍺 +200 y racha</span><span>Triple +120</span><span>Pareja +40</span><span>💀💀 chupito</span><span>💀💀💀 fondo</span></div>
+    </div>
     </div>
     <button class="doble glass pulsable" id="doble"><b>Doble o nada</b><span id="dobleTxt">Te juegas todas tus fichas. La casa gana el 53 % de las veces.</span></button>
     <div class="etq" style="padding:6px 4px 0">Power-ups</div>

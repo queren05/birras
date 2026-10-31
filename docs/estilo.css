@@ -618,3 +618,67 @@ html{-webkit-overflow-scrolling:touch}
 .jug{grid-template-columns:auto 1fr auto auto}
 .jug .fichas-col{min-width:46px;font-size:17px;color:var(--ambar);padding-left:8px;border-left:1px solid rgba(255,255,255,.12)}
 .persona .tot .tot-f{display:block;margin-top:6px;font-size:18px;color:var(--ambar)}
+
+/* =================================================================
+   CASINO: selector de juego, fichas de apuesta, ruleta, dados, rasca
+   ================================================================= */
+.juegos{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:5px;border-radius:24px}
+.juego-b{display:grid;justify-items:center;gap:2px;padding:9px 2px 7px;border-radius:19px;font-size:22px;color:var(--txt2);transition:background .25s,color .25s}
+.juego-b span{font-size:11.5px;font-weight:700}
+.juego-b.on{background:rgba(255,255,255,.22);color:var(--txt);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+[data-tema="claro"] .juego-b.on{background:#fff}
+.apuesta{display:grid;gap:8px;padding:12px 14px}
+.fichas-ap{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:10px 4px 4px}
+.fichas-ap::-webkit-scrollbar{display:none}
+.ficha-ap{flex:none;width:50px;height:50px;border-radius:50%;font-family:var(--fr);font-weight:900;font-size:15px;color:#fff;
+  background:repeating-conic-gradient(#7a3dff 0 30deg,#fff 30deg 45deg);box-shadow:inset 0 0 0 5px #4a1fb0,0 4px 10px rgba(0,0,0,.3);transition:transform .25s cubic-bezier(.3,1.8,.5,1)}
+.ficha-ap:nth-child(2){background:repeating-conic-gradient(#ff3d81 0 30deg,#fff 30deg 45deg);box-shadow:inset 0 0 0 5px #a3104a,0 4px 10px rgba(0,0,0,.3)}
+.ficha-ap:nth-child(3){background:repeating-conic-gradient(#0f8a4f 0 30deg,#fff 30deg 45deg);box-shadow:inset 0 0 0 5px #075c33,0 4px 10px rgba(0,0,0,.3)}
+.ficha-ap:nth-child(4){background:repeating-conic-gradient(#141414 0 30deg,#fff 30deg 45deg);box-shadow:inset 0 0 0 5px #000,0 4px 10px rgba(0,0,0,.3)}
+.ficha-ap:nth-child(5){background:repeating-conic-gradient(#d9a23a 0 30deg,#fff 30deg 45deg);box-shadow:inset 0 0 0 5px #8a5a10,0 4px 10px rgba(0,0,0,.3)}
+.ficha-ap:nth-child(6){background:repeating-conic-gradient(#2a8fc0 0 30deg,#fff 30deg 45deg);box-shadow:inset 0 0 0 5px #165c80,0 4px 10px rgba(0,0,0,.3)}
+.ficha-ap.todo{width:auto;padding:0 14px;border-radius:99px;font-size:14px;background:linear-gradient(160deg,#ff5d5d,#a3001c);box-shadow:0 4px 10px rgba(0,0,0,.3)}
+.ficha-ap.on{transform:translateY(-6px) scale(1.08);outline:3px solid #fff;outline-offset:2px}
+.ficha-ap span,.ficha-ap{text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.panel-juego{display:grid;gap:14px}
+.ruleta-caja,.dados-caja,.rasca-caja{padding:18px;display:grid;gap:14px}
+.ruleta-marco{position:relative;width:min(78vw,300px);aspect-ratio:1;justify-self:center}
+.ruleta-marco canvas{width:100%;height:100%;border-radius:50%;box-shadow:0 18px 40px rgba(0,0,0,.5),0 0 0 6px #4a2a0c,0 0 0 9px #d9a23a;will-change:transform}
+.ruleta-puntero{position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:0;height:0;border-left:13px solid transparent;border-right:13px solid transparent;border-top:24px solid #fff;filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
+.ruleta-bola{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#bbb);box-shadow:0 2px 4px rgba(0,0,0,.6);transform:rotate(0) translateY(-118px);opacity:0}
+.ruleta-bola.gira{opacity:1;animation:bola 4.2s cubic-bezier(.15,.55,.15,1) forwards}
+@keyframes bola{from{transform:rotate(0) translateY(calc(min(78vw,300px) * -.47))}to{transform:rotate(-1800deg) translateY(calc(min(78vw,300px) * -.38))}}
+.bolita{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 6px;border-radius:99px;font-weight:900;color:#fff;vertical-align:middle;margin-right:6px}
+.bolita.rojo{background:#c8102e}.bolita.negro{background:#141414;box-shadow:0 0 0 1px rgba(255,255,255,.3)}.bolita.verde{background:#0f8a4f}
+.tapete{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.tapete .ap-b:nth-child(-n+4){grid-column:span 3}
+.tapete .ap-b:nth-child(n+5){grid-column:span 2}
+.tapete.tres{grid-template-columns:repeat(3,1fr)}
+.tapete.tres .ap-b{grid-column:auto!important}
+.ap-b{padding:11px 4px 9px;border-radius:16px;font-weight:800;font-size:15px;background:linear-gradient(160deg,rgba(15,110,70,.85),rgba(8,70,44,.85));border:1px solid rgba(255,255,255,.18);color:#fff;display:grid;gap:1px;transition:transform .2s}
+.ap-b small{font-size:11px;font-weight:600;opacity:.8}
+.ap-b.rojo{background:linear-gradient(160deg,#d3243c,#8f0a1f)}
+.ap-b.negro{background:linear-gradient(160deg,#2a2a2a,#050505)}
+.ap-b.dorado{background:linear-gradient(160deg,#e8b54a,#a8711a)}
+.ap-b.sel,.num-b.sel{outline:3px solid #ffd257;outline-offset:2px;transform:scale(1.04)}
+.numeros{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.num-b{height:36px;border-radius:10px;font-weight:800;font-size:14px;color:#fff;border:1px solid rgba(255,255,255,.15)}
+.num-b.rojo{background:#b30f28}.num-b.negro{background:#151515}.num-b.verde{background:#0f8a4f;grid-column:1/-1}
+.dados-mesa{display:flex;justify-content:center;gap:22px;padding:18px 0;border-radius:22px;background:radial-gradient(circle at 50% 40%,#127a4a,#063d24);box-shadow:inset 0 4px 20px rgba(0,0,0,.5)}
+.dado{width:78px;height:78px;border-radius:18px;background:linear-gradient(145deg,#fff,#e2ddd3);box-shadow:0 8px 16px rgba(0,0,0,.45),inset 0 -3px 0 rgba(0,0,0,.12);display:grid;grid-template-columns:repeat(3,1fr);padding:11px;gap:4px}
+.dado i{border-radius:50%}
+.dado i.p{background:radial-gradient(circle at 35% 30%,#555,#111)}
+.dado.rueda{animation:rueda .18s linear infinite}
+.dado.rueda + .dado.rueda{animation-direction:reverse}
+@keyframes rueda{0%{transform:rotate(0) translateY(0)}50%{transform:rotate(12deg) translateY(-8px)}100%{transform:rotate(-8deg) translateY(0)}}
+.rasca-carton{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px;border-radius:22px;background:linear-gradient(145deg,#ffe28a,#f5a623);box-shadow:inset 0 2px 0 rgba(255,255,255,.6),0 10px 24px rgba(0,0,0,.35)}
+.casilla{aspect-ratio:1;border-radius:16px;position:relative;overflow:hidden;background:#fff8e6;font-size:40px;display:grid;place-items:center}
+.casilla span{opacity:0;transform:scale(.4);transition:all .35s cubic-bezier(.3,1.8,.5,1)}
+.casilla::after{content:"?";position:absolute;inset:0;display:grid;place-items:center;font-family:var(--fr);font-weight:900;font-size:30px;color:#6b6b6b;
+  background:repeating-linear-gradient(45deg,#cfcfcf 0 6px,#bdbdbd 6px 12px);transition:opacity .35s,transform .35s}
+.casilla.abierta span{opacity:1;transform:none}
+.casilla.abierta::after{opacity:0;transform:scale(1.4) rotate(8deg)}
+.casilla:disabled::after{content:"🎟️";font-size:26px}
+.casilla.premio{box-shadow:0 0 0 3px #ff3d81,0 0 20px #ff3d81;animation:late .8s infinite}
+
+.ficha-ap:not(.todo) span{display:grid;place-items:center;width:30px;height:30px;margin:auto;border-radius:50%;background:#fff;color:#1a0a10;font-size:12.5px;text-shadow:none;box-shadow:inset 0 0 0 2px rgba(0,0,0,.12)}
