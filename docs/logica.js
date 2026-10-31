@@ -44,19 +44,28 @@
     for (const u of USERS) {
       users[u] = {
         c: { cerveza: 0, cubata: 0, chupito: 0, cigarro: 0 },
-        fichas: 0, ultCerveza: ts, ultEv: 0, ultBebida: 0, ultCigarro: 0,
+        fichas: 0, ultCerveza: ts, ultEv: 0, primera: 0, ultBebida: 0, ultCigarro: 0,
         combo: 0, maxCombo: 0, racha: 0, escudo: 0, castigos: 0,
       };
     }
-    return { v: 1, users, happy: 0, rondas: 0, ultRonda: 0, diana: null, feed: [], upto: 0, ids: [] };
+    return { v: 1, users, happy: 0, rondas: 0, ultRonda: 0, diana: null, feed: [], upto: 0, ids: [], t0: 0, hist: {}, noches: [] };
   }
 
   const clon = (o) => JSON.parse(JSON.stringify(o));
 
   /* Las fotos del estado de antes de añadir gente no traen a los nuevos. */
   function normalizar(s) {
-    const vacio = estadoInicial(s.upto || 0).users;
-    for (const u of USERS) if (!s.users[u]) s.users[u] = vacio[u];
+    const vacio = estadoInicial(0);
+    for (const u of USERS) {
+      const U = s.users[u];
+      if (!U) { s.users[u] = estadoInicial(s.upto || 0).users[u]; continue; }
+      s.users[u] = Object.assign({}, vacio.users[u], U, { c: Object.assign({}, vacio.users[u].c, U.c) });
+    }
+    for (const k of ['happy', 'rondas', 'ultRonda', 'upto', 't0']) if (s[k] == null) s[k] = 0;
+    if (!s.hist) s.hist = {};
+    if (!s.noches) s.noches = [];
+    if (!s.feed) s.feed = [];
+    s.ids = (s.ids || []).map((x) => (Array.isArray(x) ? x : [x, s.upto]));
     return s;
   }
 
@@ -104,13 +113,45 @@
    * lo que ya incluye una foto del estado) */
   function pendiente(s, msg) {
     if (msg.time > s.upto) return true;
-    return msg.time >= s.upto - 120 && !s.ids.includes(msg.id);
+    return msg.time >= s.upto - 120 && !s.ids.some((x) => x[0] === msg.id);
   }
 
   function marcar(s, msg) {
     s.upto = Math.max(s.upto, msg.time);
-    s.ids.push(msg.id);
-    s.ids = s.ids.filter((_, i, a) => i >= a.length - 60);
+    s.ids.push([msg.id, msg.time]);
+    s.ids = s.ids.filter((x) => x[1] >= s.upto - 120);
+  }
+
+  /* Histograma por cuartos de hora para el gráfico de la noche: [cerveza, cubata, chupito, cigarro]. */
+  const ORDEN = ['cerveza', 'cubata', 'chupito', 'cigarro'];
+  function histo(s, t, tipo, n) {
+    const k = String(Math.floor(t / 900));
+    const fila = s.hist[k] || (s.hist[k] = [0, 0, 0, 0]);
+    const i = ORDEN.indexOf(tipo);
+    if (n > 0) fila[i]++;
+    else {   // quitar: del cuarto de hora más reciente que tenga de ese tipo
+      const ks = Object.keys(s.hist).sort((a, b) => b - a);
+      const kk = ks.find((x) => s.hist[x][i] > 0);
+      if (kk) s.hist[kk][i]--;
+    }
+    const ks = Object.keys(s.hist).sort((a, b) => a - b);
+    while (ks.length > 48) delete s.hist[ks.shift()];
+  }
+
+  /* Foto compacta para ntfy (máximo 4 KB por mensaje): sin campos a cero y con la
+   * lista de jugadas recortada hasta que quepa. normalizar() lo rellena al leer. */
+  function paraSnap(s) {
+    const o = clon(s);
+    for (const u of Object.keys(o.users)) {
+      const U = o.users[u];
+      for (const t of Object.keys(U.c)) if (!U.c[t]) delete U.c[t];
+      for (const k of Object.keys(U)) if (U[k] === 0) delete U[k];
+    }
+    for (const f of o.feed) delete f.u;
+    o.feed = o.feed.slice(0, 12);
+    while (JSON.stringify({ k: 'snap', s: o }).length > 3600 && o.feed.length) o.feed.pop();
+    while (JSON.stringify({ k: 'snap', s: o }).length > 3600 && Object.keys(o.hist).length) delete o.hist[Object.keys(o.hist).sort((a, b) => a - b)[0]];
+    return o;
   }
 
   /* Aplica un mensaje {id, time, d} y devuelve efectos para animar. */
@@ -128,19 +169,22 @@
       const aOtro = d.por && d.por !== u ? ` a ${NOMBRES[u]}` : '';
       if (d.n < 0) {
         if (U.c[d.t] > 0) {
-          U.c[d.t]--; U.fichas = Math.max(0, U.fichas - T.fichas);
+          U.c[d.t]--; U.fichas = Math.max(0, U.fichas - T.fichas); histo(s, t, d.t, -1);
           feed(s, t, u, '➖', d.deshacer ? `${quien} deshace: −1 ${T.nombre.toLowerCase()}${aOtro}` : `${quien} quita ${T.un}${aOtro}`);
           ef.push({ k: 'quita', u, t: d.t });
         }
         return ef;
       }
       if (d.fix) {   // corrección o deshacer: suma sin combos ni fichas extra
-        U.c[d.t]++; U.fichas += T.fichas;
+        U.c[d.t]++; U.fichas += T.fichas; histo(s, t, d.t, 1);
+        s.t0 = s.t0 || t; U.primera = U.primera || t;
         feed(s, t, u, '✏️', d.deshacer ? `${quien} deshace: +1 ${T.nombre.toLowerCase()}${aOtro}` : `${quien} corrige: +1 ${T.nombre.toLowerCase()}${aOtro}`);
         ef.push({ k: 'corrige', u, t: d.t });
         return ef;
       }
       U.c[d.t]++;
+      histo(s, t, d.t, 1);
+      s.t0 = s.t0 || t; U.primera = U.primera || t;
       let m = mult();
       if (T.bebida) {
         U.combo = t - U.ultBebida <= COMBO_VENTANA ? U.combo + 1 : 1;
@@ -197,6 +241,24 @@
       return ef;
     }
 
+    if (d.k === 'noche') {   // cerrar la noche: se guarda el resumen y el bote vuelve a cero
+      const tot = ORDEN.map((x) => totalGrupo(s, x));
+      if (tot.some(Boolean)) {
+        const top = USERS.map((x) => [x, puntos(s.users[x])]).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 3);
+        s.noches.unshift({ a: s.t0 || t, b: t, c: tot, p: Math.round(USERS.reduce((n, x) => n + puntos(s.users[x]), 0) * 10) / 10, top });
+        s.noches = s.noches.slice(0, 4);
+      }
+      for (const x of USERS) {
+        const X = s.users[x];
+        X.c = { cerveza: 0, cubata: 0, chupito: 0, cigarro: 0 };
+        Object.assign(X, { ultCerveza: t, ultEv: 0, primera: 0, ultBebida: 0, ultCigarro: 0, combo: 0, maxCombo: 0, castigos: 0, racha: 0, escudo: 0 });
+      }
+      Object.assign(s, { hist: {}, rondas: 0, ultRonda: 0, happy: 0, diana: null, t0: 0, feed: [] });
+      feed(s, t, u, '🌅', `${NOMBRES[u]} cierra la noche. Bote a cero.`);
+      ef.push({ k: 'noche', u });
+      return ef;
+    }
+
     if (d.k === 'pw' && TIENDA[d.p] && U.fichas >= TIENDA[d.p].coste) {
       const P = TIENDA[d.p];
       if (d.p === 'diana' && (!s.users[d.obj] || d.obj === u)) return ef;
@@ -239,29 +301,32 @@
   }
 
   const INSULTOS = [
-    '{n}, una hora sin cerveza. ¿Te has hecho del Opus Dei?',
-    '{n}, mi abuela bebe más que tú y lleva diez años muerta.',
-    '{n}, deja el agua, que no eres un geranio.',
-    '¿Esa birra se va a beber sola, {n}? BEBE.',
-    '{n}, Jorlo te está mirando con asco.',
-    '{n}, eres el Kas de limón de esta mesa.',
-    'Vergüenza ajena, {n}. Una hora. UNA.',
-    '{n}, hasta el camarero está preocupado por ti.',
-    '{n}, pareces el conductor del grupo, y nadie te lo ha pedido.',
-    '{n}, ¿estás tomando antibióticos o es que eres un flojo?',
-    'Que alguien le dé un biberón de Mahou a {n}.',
-    '{n}, la casa no paga a los que no beben. BEBE O VETE.',
-    '{n}, tu hígado se está aburriendo. Dale trabajo.',
-    'Pringado detectado: {n}. Motivo: sequía.',
-    '{n}, esto no es un retiro espiritual, es un bar.',
-    '{n}, si no bebes ahora te ponemos en la mesa de los niños.',
+    '{n}, una hora sin cerveza. Gilipollas de manual.',
+    '{n}, bebe ya, pedazo de mierda, que nos estás amargando la noche.',
+    '¿Qué pasa, {n}? ¿Te has meado encima o es que eres así de flojo?',
+    '{n}, cabrón, la birra no se bebe con la mirada.',
+    '{n}, me cago en tus muertos. BEBE.',
+    'Llevas una hora seco, {n}. Das más asco que un baño de gasolinera.',
+    '{n}, capullo, hasta tu abuela tumba más cañas que tú.',
+    '{n}, eres el típico mierdas que pide agua y luego quiere pagar a partes iguales.',
+    '{n}, bebe o lárgate a casa a ver la tele con tu madre.',
+    'Atención: {n} lleva una hora haciendo el ridículo. Vergüenza, hijo de la gran puta.',
+    '{n}, si vas a estar seco, vete a un velatorio, que allí al menos pegas.',
+    '{n}, menudo pringado. La cerveza se calienta y tú ahí, rascándote los huevos.',
+    '{n}, tienes el hígado de vacaciones y la dignidad en el suelo. BEBE.',
+    '{n}, eres una decepción para tus padres y para esta mesa.',
+    'Que alguien le meta un embudo a {n}, que el muy capullo no espabila.',
+    '{n}, a este ritmo te van a echar del grupo de WhatsApp, cagón.',
+    '{n}, deja el móvil y bebe, so cansino de los cojones.',
   ];
   const INSULTOS_FUERTES = [
-    '{n}, DOS HORAS. Te vamos a denunciar por abandono de birra.',
-    '{n}, a estas alturas eres un vaso de agua con patas.',
-    '{n}, lleva {h} sin beber. Que alguien llame a sus padres.',
-    '{n}, si fueras una cerveza serías sin alcohol. Y caliente.',
-    '{n}: {h} sin probar gota. Das más pena que un Cruzcampo sin gas.',
+    '{n}, {h} sin beber. Eres un puto lastre, tío.',
+    '{n}: {h} seco. Hasta un cactus tiene más vida social que tú.',
+    '{n}, {h} sin cerveza. Te estás ganando que te paguemos un taxi y no volvamos a quedar contigo.',
+    '{n}, {h}. A estas alturas eres un mueble con patas, cabrón.',
+    '{n}, {h} sin tocar una birra. Me das vergüenza ajena y propia, gilipollas.',
+    '{h} lleva {n} sin beber. Que alguien llame a sus padres y les pida perdón por haberlo criado.',
+    '{n}, {h} seco. Eres el mayor fracaso de esta noche, y mira que la noche va de culo.',
   ];
 
   function horasTexto(seg) {
@@ -285,7 +350,7 @@
   return {
     TOPIC, TOPIC_AVISOS, NTFY, USERS, NOMBRES, TIPOS, TIENDA, SIMBOLOS, SLOT_COSTE,
     COMBO_VENTANA, COMBO_MAX, HORA_SECA,
-    estadoInicial, normalizar, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
+    estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
     secos, insulto, horasTexto, clon,
   };
 });

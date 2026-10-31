@@ -24,19 +24,57 @@
   const inicial = (u) => B.NOMBRES[u][0];
 
   /* ================= Red ================= */
-  async function publicar(d) {
-    d.eid = Math.random().toString(36).slice(2, 10);
+  /* Envío con cola: si no hay cobertura, la jugada se guarda en el móvil y se
+   * manda sola en cuanto vuelve la conexión (no se pierde nada). */
+  let cola = []; try { cola = JSON.parse(leer('birras-cola') || '[]'); } catch (e) { cola = []; }
+  let enviando = false;
+  const guardarCola = () => guardar('birras-cola', JSON.stringify(cola));
+  function publicar(d) {
+    d.eid = d.eid || Math.random().toString(36).slice(2, 10);
     misEids.add(d.eid);
-    for (let i = 0; i < 3; i++) {
-      try {
-        const r = await fetch(URL_TOPIC, { method: 'POST', body: JSON.stringify(d) });
-        if (r.ok) return true;
-        if (r.status === 429) { toast('Demasiadas jugadas seguidas. Espera un momento.'); return false; }
-      } catch (e) { /* reintenta */ }
-      await new Promise((ok) => setTimeout(ok, 800 * (i + 1)));
-    }
-    toast('Sin conexión: no se ha apuntado. Vuelve a darle.');
-    return false;
+    if (d.k !== 'snap') { cola.push(d); guardarCola(); }
+    else enviarUno(d);
+    vaciarCola();
+    return true;
+  }
+  async function enviarUno(d) {
+    try {
+      const r = await fetch(URL_TOPIC, { method: 'POST', body: JSON.stringify(d) });
+      return r.ok ? 'ok' : r.status === 429 ? 'lento' : r.status >= 500 ? 'red' : 'malo';
+    } catch (e) { return 'red'; }
+  }
+  async function vaciarCola() {
+    if (enviando) return;
+    enviando = true;
+    try {
+      while (cola.length) {
+        const r = await enviarUno(cola[0]);
+        if (r === 'ok' || r === 'malo') { cola.shift(); guardarCola(); continue; }
+        if (r === 'lento') toast('Vais muy rápido: se manda en unos segundos.');
+        pintarCola();
+        setTimeout(vaciarCola, r === 'lento' ? 6000 : 4000);
+        return;
+      }
+    } finally { enviando = false; pintarCola(); }
+  }
+  function pintarCola() {
+    const n = cola.length;
+    const el = $('pillCola');
+    if (el) el.remove();
+    if (n) $('pills').insertAdjacentHTML('afterbegin', `<span class="pill pendientes" id="pillCola">⏳ ${n} sin enviar</span>`);
+  }
+  addEventListener('online', vaciarCola);
+  setInterval(() => { if (cola.length) vaciarCola(); }, 8000);
+
+  /* Diálogo propio (el confirm() del sistema sale como «localhost» en la app). */
+  function preguntar(titulo, texto, si = 'Aceptar', peligro = false) {
+    return new Promise((ok) => {
+      $('dlgT').textContent = titulo; $('dlgTxt').textContent = texto;
+      $('dlgSi').textContent = si; $('dlgSi').classList.toggle('peligro', peligro);
+      $('capaDialogo').classList.add('on'); vibrar('suave');
+      const fin = (v) => { $('capaDialogo').classList.remove('on'); $('dlgSi').onclick = $('dlgNo').onclick = null; ok(v); };
+      $('dlgSi').onclick = () => fin(true); $('dlgNo').onclick = () => fin(false);
+    });
   }
 
   async function cargar() {
@@ -79,7 +117,7 @@
       const mio = misEids.has(p.d.eid);
       if (efectos.length) animar(efectos, mio);
       pintar();
-      if (mio && ahora() - ultSnap > 2 * 3600) publicar({ k: 'snap', s: S });
+      if (mio && ahora() - ultSnap > 2 * 3600) publicar({ k: 'snap', s: B.paraSnap(S) });
     };
   }
 
@@ -87,11 +125,14 @@
     const el = $('conexion');
     el.textContent = ok ? 'En directo con la mesa' : 'Sin conexión, reintentando…';
     el.className = 'conexion ' + (ok ? 'ok' : 'mal');
+    $('puntoCon').className = 'punto-con ' + (ok ? 'ok' : 'mal');
   }
 
   /* ================= Pintar ================= */
   function pintar() {
     if (!S) return;
+    $('capaCarga').classList.add('fuera');
+    pintarNoche();
     const now = ahora();
     const tot = (t) => B.totalGrupo(S, t);
 
@@ -117,7 +158,7 @@
     const lider = Math.max(1, ...B.USERS.map(aporte));
     $('marcador').innerHTML = orden.map((u, i) => {
       const U = S.users[u], p = aporte(u);
-      const seg = Object.keys(B.TIPOS).map((t) => U.c[t] ? `<i class="t-${t}" style="width:${U.c[t] * B.TIPOS[t].pts / lider * 100}%"></i>` : '').join('');
+      const seg = ORDEN_VIS.map((t) => U.c[t] ? `<i class="t-${t}" style="width:${U.c[t] * B.TIPOS[t].pts / lider * 100}%"></i>` : '').join('');
       const ic = Object.keys(B.TIPOS).filter((t) => U.c[t]).map((t) => `${B.TIPOS[t].ico} ${U.c[t]}`).join('  ') || 'sin estrenar';
       return `<div class="jug${u === yo ? ' yo' : ''}${p ? '' : ' cero'}"><span class="av ${u}">${inicial(u)}</span>
         <div class="info"><div class="linea"><b>${B.NOMBRES[u]}</b>${i === 0 && p ? '<span class="corona">👑</span>' : ''}<span class="ic">${ic}</span></div><div class="barra">${seg}</div></div>
@@ -167,7 +208,104 @@
     if (ult) $('deshacer').textContent = `↩︎ Deshacer: ${ult.n > 0 ? '+1' : '−1'} ${B.TIPOS[ult.t].nombre.toLowerCase()}${ult.u !== yo ? ` de ${B.NOMBRES[ult.u]}` : ''}${pila.length > 1 ? ` · quedan ${pila.length}` : ''}`;
     if ($('capaFix').classList.contains('on')) pintarFix();
     pintarTienda(U);
+    pintarCola();
   }
+
+  /* ================= La noche: gráfico, récords, historial ================= */
+  const ORDEN_VIS = ['cerveza', 'chupito', 'cubata', 'cigarro'];   // orden de apilado validado
+  const COLOR = { cerveza: '#bb820e', chupito: '#9a5ce0', cubata: '#c2462e', cigarro: '#2a9f99' };
+  const dur = (seg) => B.horasTexto(Math.max(0, seg));
+  function pintarNoche() {
+    const now = ahora();
+    const pts = (u) => B.puntos(S.users[u]);
+    const jugaron = B.USERS.filter((u) => Object.values(S.users[u].c).some(Boolean));
+    $('nocheSub').textContent = S.t0 ? `Empezó a las ${hora(S.t0)} · lleva ${dur(now - S.t0)} · ${jugaron.length} en la mesa` : 'Todavía no ha empezado. La primera la paga la casa (mentira).';
+    $('leyGraf').innerHTML = ORDEN_VIS.map((t) => `<span><i class="t-${t}"></i>${B.TIPOS[t].plural}</span>`).join('');
+    pintarGrafico(now);
+
+    const mejor = (f, filtro = jugaron) => filtro.slice().sort((a, b) => f(b) - f(a))[0];
+    const horas = S.t0 ? Math.max(0.25, (now - S.t0) / 3600) : 0;
+    const ritmoU = (u) => S.users[u].primera ? pts(u) / Math.max(0.5, (now - S.users[u].primera) / 3600) : 0;
+    const rapido = mejor(ritmoU), combo = mejor((u) => S.users[u].maxCombo), fuma = mejor((u) => S.users[u].c.cigarro);
+    const secos = jugaron.filter((u) => S.users[u].c.cerveza || S.users[u].ultEv);
+    const seco = secos.slice().sort((a, b) => S.users[a].ultCerveza - S.users[b].ultCerveza)[0];
+    const fmt1 = (n) => n.toLocaleString('es-ES', { maximumFractionDigits: 1 });
+    const tarjeta = (etq, valor, sub) => `<div class="record glass"><span class="etq">${etq}</span><b>${valor}</b><span>${sub}</span></div>`;
+    $('records').innerHTML = [
+      tarjeta('Ritmo de la mesa', horas ? fmt1(B.totalGrupo(S) / horas) : '—', 'cervezas por hora'),
+      tarjeta('Más rápido', rapido && ritmoU(rapido) ? B.NOMBRES[rapido] : '—', rapido && ritmoU(rapido) ? `${fmt1(ritmoU(rapido))} puntos por hora` : 'nadie todavía'),
+      tarjeta('Mejor combo', combo && S.users[combo].maxCombo > 1 ? `x${Math.min(S.users[combo].maxCombo, B.COMBO_MAX)}` : '—', combo && S.users[combo].maxCombo > 1 ? B.NOMBRES[combo] : 'encadena dos en 20 min'),
+      tarjeta('Rondas', S.rondas || 0, '3 o más con cerveza en 5 min'),
+      tarjeta('Más fumador', fuma && S.users[fuma].c.cigarro ? B.NOMBRES[fuma] : '—', fuma && S.users[fuma].c.cigarro ? `${S.users[fuma].c.cigarro} cigarros` : 'aire limpio, de momento'),
+      tarjeta('Más seco', seco ? B.NOMBRES[seco] : '—', seco ? `sin cerveza hace ${dur(now - S.users[seco].ultCerveza)}` : 'nadie ha bebido aún'),
+    ].join('');
+
+    const fecha = (t) => new Date(t * 1000).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+    $('noches').innerHTML = (S.noches || []).map((n) => `<div class="noche-fila">
+        <div class="top">${fecha(n.a)}<span>${hora(n.a)}–${hora(n.b)} · ${dur(n.b - n.a)}</span></div>
+        <div class="det">🍺 ${n.c[0]} · 🥃 ${n.c[1]} · 🥂 ${n.c[2]} · 🚬 ${n.c[3]} · ${B.fmtPts(n.p)} puntos</div>
+        <div class="det">${n.top.map((x, i) => `${['🥇', '🥈', '🥉'][i]} ${B.NOMBRES[x[0]]} ${B.fmtPts(x[1])}`).join('  ')}</div></div>`).join('') || '<div class="vacio">Cuando cerréis una noche, su resumen quedará aquí.</div>';
+  }
+
+  let grafSel = null;
+  function pintarGrafico(now) {
+    const ks = Object.keys(S.hist || {}).map(Number);
+    if (!ks.length) { $('graf').innerHTML = '<div class="graf-vacio">El gráfico aparece con la primera consumición.</div>'; $('tip').hidden = true; return; }
+    const ini = Math.min(...ks), fin = Math.max(Math.floor(now / 900), Math.max(...ks));
+    const desde = Math.max(ini, fin - 31);
+    const cubos = []; for (let k = desde; k <= fin; k++) cubos.push(k);
+    const fila = (k) => S.hist[k] || [0, 0, 0, 0];
+    const idx = (t) => B.ORDEN.indexOf(t);
+    const max = Math.max(1, ...cubos.map((k) => fila(k).reduce((a, b) => a + b, 0)));
+    const paso = max <= 4 ? 1 : max <= 10 ? 2 : 5, tope = Math.ceil(max / paso) * paso;
+    const W = $('graf').clientWidth || 340, H = 190, iz = 22, ab = 20, ar = 6;
+    const aw = (W - iz) / cubos.length, bw = Math.max(3, Math.min(22, aw - 3));
+    const y = (v) => H - ab - (v / tope) * (H - ab - ar);
+    let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Consumiciones cada 15 minutos">`;
+    for (let v = 0; v <= tope; v += paso) svg += `<line class="rejilla" x1="${iz}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text class="eje" x="${iz - 6}" y="${y(v) + 3.5}" text-anchor="end">${v}</text>`;
+    cubos.forEach((k, i) => {
+      const x = iz + i * aw + (aw - bw) / 2;
+      let base = 0;
+      const tramos = ORDEN_VIS.map((t) => [t, fila(k)[idx(t)]]).filter((x) => x[1] > 0);
+      tramos.forEach(([t, n], j) => {
+        const y0 = y(base), y1 = y(base + n), alto = Math.max(1, y0 - y1 - (j ? 2 : 0));
+        const ultimo = j === tramos.length - 1, r = ultimo ? Math.min(4, bw / 2, alto) : 0;
+        const yt = y1, yb = y0 - (j ? 2 : 0);
+        svg += r ? `<path d="M${x},${yb} V${yt + r} Q${x},${yt} ${x + r},${yt} H${x + bw - r} Q${x + bw},${yt} ${x + bw},${yt + r} V${yb} Z" fill="${COLOR[t]}"/>`
+          : `<rect x="${x}" y="${yt}" width="${bw}" height="${Math.max(0, yb - yt)}" fill="${COLOR[t]}"/>`;
+        base += n;
+      });
+      if (i % Math.ceil(cubos.length / 6) === 0 || i === cubos.length - 1) svg += `<text class="eje" x="${x + bw / 2}" y="${H - 5}" text-anchor="middle">${hora(k * 900)}</text>`;
+      svg += `<rect class="zona${grafSel === k ? ' on' : ''}" data-k="${k}" x="${iz + i * aw}" y="0" width="${aw}" height="${H - ab}"/>`;
+    });
+    $('graf').innerHTML = svg + '</svg>';
+    if (grafSel !== null) mostrarTip(grafSel);
+  }
+  function mostrarTip(k) {
+    const z = document.querySelector(`.zona[data-k="${k}"]`);
+    if (!z) { $('tip').hidden = true; return; }
+    const f = S.hist[k] || [0, 0, 0, 0];
+    $('tip').innerHTML = `<b>${hora(k * 900)}–${hora(k * 900 + 900)}</b>` + ORDEN_VIS.map((t) => `<div><i class="t-${t}"></i>${B.TIPOS[t].plural}: ${f[B.ORDEN.indexOf(t)]}</div>`).join('');
+    const g = $('graf').getBoundingClientRect(), r = z.getBoundingClientRect(), caja = $('graf').parentNode.getBoundingClientRect();
+    $('tip').hidden = false;
+    const tw = $('tip').offsetWidth;
+    let left = r.left - caja.left + r.width / 2 - tw / 2;
+    left = Math.max(8, Math.min(caja.width - tw - 8, left));
+    $('tip').style.left = left + 'px'; $('tip').style.top = (g.top - caja.top + 4) + 'px';
+  }
+  $('graf').addEventListener('pointerdown', (e) => {
+    const z = e.target.closest('.zona');
+    grafSel = z && +z.dataset.k !== grafSel ? +z.dataset.k : null;
+    document.querySelectorAll('.zona').forEach((x) => x.classList.toggle('on', +x.dataset.k === grafSel));
+    if (grafSel === null) $('tip').hidden = true; else { mostrarTip(grafSel); vibrar('suave'); }
+  });
+  $('cerrarNoche').onclick = async () => {
+    if (!yo) return pedirSilla();
+    if (!await preguntar('¿Cerrar la noche?', 'El bote vuelve a cero para todos y el resumen se guarda en «Noches anteriores». Las fichas se conservan. No se puede deshacer.', 'Cerrar la noche', true)) return;
+    publicar({ k: 'noche', u: yo });
+    pila = []; guardarPila();
+  };
+  $('version').textContent = `Casino Birras · ${window.BIRRAS_VERSION === 'web' ? 'web' : 'app ' + window.BIRRAS_VERSION}`;
 
   function pintarTienda(U) {
     const html = Object.entries(B.TIENDA).map(([k, P]) =>
@@ -256,6 +394,7 @@
     document.querySelectorAll('.vista').forEach((s) => s.classList.toggle('on', s.dataset.vista === v));
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.dataset.tab === v));
     guardar('birras-tab', v);
+    if (v === 'noche' && S) requestAnimationFrame(pintarNoche);
     window.scrollTo({ top: 0 });
   }
 
@@ -299,8 +438,9 @@
   $('doble').onclick = () => {
     if (!yo || !S) return;
     const f = S.users[yo].fichas;
-    if (f < 20 || !confirm(`¿Te juegas tus ${f} fichas a doble o nada?`)) return;
-    publicar({ k: 'doble', u: yo, gana: Math.random() < 0.47 });
+    if (f < 20) return;
+    preguntar('Doble o nada', `Te juegas tus ${f} fichas. Si ganas, ${f * 2}. Si pierdes, cero.`, 'Me la juego', true)
+      .then((si) => { if (si) publicar({ k: 'doble', u: yo, gana: Math.random() < 0.47 }); });
   };
   $('broncaYa').onclick = () => { $('capaBronca').classList.remove('on'); apuntar(yo, 'cerveza', 1); sonar('moneda'); vibrar('medio'); };
   $('broncaLuego').onclick = () => { $('capaBronca').classList.remove('on'); broncaHasta = ahora() + 300; };
@@ -392,7 +532,9 @@
   function animar(efectos, mio) {
     for (const e of efectos) {
       const quien = B.NOMBRES[e.u] || '';
-      if (e.k === 'quita' || e.k === 'corrige') {
+      if (e.k === 'noche') {
+        flotante('🌅 Noche cerrada', 'bote a cero'); confeti(80, ['🌅', '🍺']); sonar('jackpot'); pila = []; guardarPila();
+      } else if (e.k === 'quita' || e.k === 'corrige') {
         if (!mio) toast(`✏️  ${e.k === 'quita' ? '−1' : '+1'} ${B.TIPOS[e.t].nombre.toLowerCase()} a ${quien}`);
       } else if (e.k === 'bebida') {
         if (mio) { flotante(`+${e.fichas}`, `${B.TIPOS[e.t].ico} al bote`); confeti(e.t === 'cigarro' ? 10 : 26, [B.TIPOS[e.t].ico, '🪙']); destello(); }
@@ -532,7 +674,7 @@
   }
 
   /* ================= Arranque ================= */
-  irA(['bote', 'casino', 'mesa'].includes(leer('birras-tab')) ? leer('birras-tab') : 'bote');
+  irA(['bote', 'casino', 'noche', 'mesa'].includes(leer('birras-tab')) ? leer('birras-tab') : 'bote');
   if (!yo || !B.USERS.includes(yo)) { yo = null; pedirSilla(); }
   cargar();
   setInterval(tic, 1000);

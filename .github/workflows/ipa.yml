@@ -28,10 +28,12 @@ jobs:
 
       - name: Crear el proyecto iOS (Capacitor)
         run: |
+          echo "window.BIRRAS_VERSION = '1.0.${{ github.run_number }}';" > docs/version.js
           npm install
           npx cap add ios
           mkdir -p assets && cp resources/icon.png assets/icon-only.png
-          npx --yes @capacitor/assets generate --ios --iconBackgroundColor "#16050c" || echo "Iconos: se usa el por defecto"
+          cp resources/splash.png assets/splash.png && cp resources/splash.png assets/splash-dark.png
+          npx --yes @capacitor/assets generate --ios --iconBackgroundColor "#16050c" --splashBackgroundColor "#16050c" --splashBackgroundColorDark "#16050c" || echo "Iconos: se usa el por defecto"
           npx cap sync ios
           sh scripts/sin-barra-scroll.sh
           PL=ios/App/App/Info.plist
