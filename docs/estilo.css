@@ -94,7 +94,7 @@ button:focus-visible{outline:2px solid var(--espuma);outline-offset:3px}
 .mega.salta{animation:salta .6s cubic-bezier(.3,1.8,.5,1)}
 @keyframes salta{30%{transform:scale(1.18)}}
 .mega-l{font-family:var(--fr);font-weight:700;font-size:20px;color:var(--espuma);margin-top:-2px}
-.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:16px}
 .chip{border-radius:20px;padding:10px 6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);display:grid;gap:0}
 .chip b{font-family:var(--fr);font-size:26px;font-weight:800;line-height:1.1}
 .chip span{font-size:13px;color:var(--txt2)}
@@ -106,7 +106,7 @@ button:focus-visible{outline:2px solid var(--espuma);outline-offset:3px}
 .leyenda i{width:8px;height:8px;border-radius:50%}
 
 /* ---------- Botones de bebida ---------- */
-.bebidas{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.bebidas{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .beber{display:grid;justify-items:center;gap:2px;padding:16px 6px 14px;border-radius:26px;overflow:hidden}
 .beber .e{font-size:40px;line-height:1.1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.3))}
 .beber .n{font-weight:700;font-size:15px}
@@ -265,7 +265,7 @@ button:focus-visible{outline:2px solid var(--espuma);outline-offset:3px}
 .jug .pts small{display:block;font-size:11px;font-weight:600;color:var(--txt2)}
 .jug .corona{font-size:13px;margin-left:-2px}
 /* Paleta validada (CVD y visión normal) sobre fondo oscuro; orden de apilado: cerveza, chupito, cubata, cigarro */
-.t-cerveza{background:#bb820e}.t-chupito{background:#9a5ce0}.t-cubata{background:#c2462e}.t-cigarro{background:#2a9f99}
+.t-cerveza{background:#bb820e}.t-chupito{background:#9a5ce0}.t-cubata{background:#c2462e}.t-cigarro{background:#2a9fb8}.t-porro{background:#5f9b2e}
 .ley-tipos{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;font-size:12px;color:var(--txt3);padding-top:6px}
 .ley-tipos span{display:inline-flex;align-items:center;gap:5px}
 .ley-tipos i{width:8px;height:8px;border-radius:50%}

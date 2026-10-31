@@ -35,6 +35,7 @@
     cubata: { pts: 2, un: 'un cubata', nombre: 'Cubata', plural: 'Cubatas', ico: '🥃', fichas: 25, bebida: true },
     chupito: { pts: 0.5, un: 'un chupito', nombre: 'Chupito', plural: 'Chupitos', ico: '🥂', fichas: 15, bebida: true },
     cigarro: { pts: 0.2, un: 'un cigarro', nombre: 'Cigarro', plural: 'Cigarros', ico: '🚬', fichas: 5, bebida: false },
+    porro: { pts: 2.5, un: 'un porro', nombre: 'Porro', plural: 'Porros', ico: '🌿', fichas: 25, bebida: false },
   };
 
   const COMBO_VENTANA = 20 * 60;   // bebidas a menos de 20 min encadenan combo
@@ -59,7 +60,7 @@
     const users = {};
     for (const u of USERS) {
       users[u] = {
-        c: { cerveza: 0, cubata: 0, chupito: 0, cigarro: 0 },
+        c: { cerveza: 0, cubata: 0, chupito: 0, cigarro: 0, porro: 0 },
         fichas: 0, ultCerveza: ts, ultEv: 0, primera: 0, ultBebida: 0, hc: [], gan: {}, baseCerveza: 0, ultCigarro: 0,
         combo: 0, maxCombo: 0, racha: 0, escudo: 0, castigos: 0,
       };
@@ -140,10 +141,11 @@
   }
 
   /* Histograma por cuartos de hora para el gráfico de la noche: [cerveza, cubata, chupito, cigarro]. */
-  const ORDEN = ['cerveza', 'cubata', 'chupito', 'cigarro'];
+  const ORDEN = ['cerveza', 'cubata', 'chupito', 'cigarro', 'porro'];
   function histo(s, t, tipo, n) {
     const k = String(Math.floor(t / 900));
-    const fila = s.hist[k] || (s.hist[k] = [0, 0, 0, 0]);
+    const fila = s.hist[k] || (s.hist[k] = [0, 0, 0, 0, 0]);
+    while (fila.length < ORDEN.length) fila.push(0);   // filas antiguas (sin porros)
     const i = ORDEN.indexOf(tipo);
     if (n > 0) fila[i]++;
     else {   // quitar: del cuarto de hora más reciente que tenga de ese tipo
@@ -317,7 +319,7 @@
       }
       for (const x of USERS) {
         const X = s.users[x];
-        X.c = { cerveza: 0, cubata: 0, chupito: 0, cigarro: 0 };
+        X.c = { cerveza: 0, cubata: 0, chupito: 0, cigarro: 0, porro: 0 };
         Object.assign(X, { hc: [], gan: {}, baseCerveza: 0, ultCerveza: t, ultEv: 0, primera: 0, ultBebida: 0, ultCigarro: 0, combo: 0, maxCombo: 0, castigos: 0, racha: 0, escudo: 0 });
       }
       Object.assign(s, { hist: {}, rondas: 0, ultRonda: 0, happy: 0, diana: null, t0: 0, feed: [] });

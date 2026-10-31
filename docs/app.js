@@ -239,6 +239,7 @@
     $('tCubata').textContent = tot('cubata');
     $('tChupito').textContent = tot('chupito');
     $('tCigarro').textContent = tot('cigarro');
+    $('tPorro').textContent = tot('porro');
     const aporte = (u) => ptsDe(u);
     const todo = B.USERS.reduce((n, u) => n + aporte(u), 0);
     $('barraRep').innerHTML = todo ? B.USERS.map((u) => `<i class="c-${u}" style="width:${aporte(u) / todo * 100}%${colorDe(u) ? ';background:' + colorDe(u)[1] : ''}"></i>`).join('') : '';
@@ -261,7 +262,7 @@
       return `<div class="persona glass${u === yo ? ' yo' : ''}${secos.has(u) ? ' seco' : ''}" data-persona="${u}" role="button" tabindex="0" aria-label="Corregir a ${B.NOMBRES[u]}">
         ${av(u)}
         <div><div class="nom">${B.NOMBRES[u]}<span class="pos">${['🥇', '🥈', '🥉'][i] || ''}</span></div>
-          <div class="det num"><span>🍺 ${U.c.cerveza}</span><span>🥃 ${U.c.cubata}</span><span>🥂 ${U.c.chupito}</span><span>🚬 ${U.c.cigarro}</span></div>
+          <div class="det num"><span>🍺 ${U.c.cerveza}</span><span>🥃 ${U.c.cubata}</span><span>🥂 ${U.c.chupito}</span><span>🚬 ${U.c.cigarro}</span>${U.c.porro ? `<span>🌿 ${U.c.porro}</span>` : ''}</div>
           <div class="hace${secos.has(u) ? ' mal' : ''}">${secos.has(u) ? 'Seco desde hace ' : 'Última cerveza hace '}${B.horasTexto(seg)} · ${U.fichas} fichas${U.castigos ? ` · 💀 ${U.castigos}` : ''}</div>
           <div class="editar">Toca para corregir</div>
         </div>
@@ -305,8 +306,8 @@
   }
 
   /* ================= La noche: gráfico, récords, historial ================= */
-  const ORDEN_VIS = ['cerveza', 'chupito', 'cubata', 'cigarro'];   // orden de apilado validado
-  const COLOR = { cerveza: '#bb820e', chupito: '#9a5ce0', cubata: '#c2462e', cigarro: '#2a9f99' };
+  const ORDEN_VIS = ['cerveza', 'chupito', 'porro', 'cigarro', 'cubata'];   // orden de apilado validado (CVD y visión normal)
+  const COLOR = { cerveza: '#bb820e', chupito: '#9a5ce0', porro: '#5f9b2e', cigarro: '#2a9fb8', cubata: '#c2462e' };
   const dur = (seg) => B.horasTexto(Math.max(0, seg));
   function pintarNoche() {
     const now = ahora();
@@ -336,7 +337,7 @@
     const fecha = (t) => new Date(t * 1000).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
     $('noches').innerHTML = (S.noches || []).map((n) => `<div class="noche-fila">
         <div class="top">${fecha(n.a)}<span>${hora(n.a)}–${hora(n.b)} · ${dur(n.b - n.a)}</span></div>
-        <div class="det">🍺 ${n.c[0]} · 🥃 ${n.c[1]} · 🥂 ${n.c[2]} · 🚬 ${n.c[3]} · ${B.fmtPts(n.p)} puntos</div>
+        <div class="det">🍺 ${n.c[0]} · 🥃 ${n.c[1]} · 🥂 ${n.c[2]} · 🚬 ${n.c[3]}${n.c[4] ? ` · 🌿 ${n.c[4]}` : ''} · ${B.fmtPts(n.p)} puntos</div>
         <div class="det">${n.top.map((x, i) => `${['🥇', '🥈', '🥉'][i]} ${B.NOMBRES[x[0]]} ${B.fmtPts(x[1])}`).join('  ')}</div></div>`).join('') || '<div class="vacio">Cuando cerréis una noche, su resumen quedará aquí.</div>';
   }
 
@@ -347,7 +348,7 @@
     const ini = Math.min(...ks), fin = Math.max(Math.floor(now / 900), Math.max(...ks));
     const desde = Math.max(ini, fin - 31);
     const cubos = []; for (let k = desde; k <= fin; k++) cubos.push(k);
-    const fila = (k) => S.hist[k] || [0, 0, 0, 0];
+    const fila = (k) => S.hist[k] || [0, 0, 0, 0, 0];
     const idx = (t) => B.ORDEN.indexOf(t);
     const max = Math.max(1, ...cubos.map((k) => fila(k).reduce((a, b) => a + b, 0)));
     const paso = max <= 4 ? 1 : max <= 10 ? 2 : 5, tope = Math.ceil(max / paso) * paso;
@@ -377,7 +378,7 @@
   function mostrarTip(k) {
     const z = document.querySelector(`.zona[data-k="${k}"]`);
     if (!z) { $('tip').hidden = true; return; }
-    const f = S.hist[k] || [0, 0, 0, 0];
+    const f = S.hist[k] || [0, 0, 0, 0, 0];
     $('tip').innerHTML = `<b>${hora(k * 900)}–${hora(k * 900 + 900)}</b>` + ORDEN_VIS.map((t) => `<div><i class="t-${t}"></i>${B.TIPOS[t].plural}: ${f[B.ORDEN.indexOf(t)]}</div>`).join('');
     const g = $('graf').getBoundingClientRect(), r = z.getBoundingClientRect(), caja = $('graf').parentNode.getBoundingClientRect();
     $('tip').hidden = false;
@@ -571,7 +572,7 @@
     if (U) {
       const orden = B.USERS.slice().sort((a, b) => B.puntos(S.users[b]) - B.puntos(S.users[a]));
       $('perSub').textContent = `${orden.indexOf(yo) + 1}º de ${B.USERS.length} esta noche · ${U.fichas} fichas`;
-      $('perNoche').innerHTML = st(B.fmtPts(B.puntos(U)), 'puntos') + st(U.c.cerveza, 'cervezas') + st(U.c.cubata, 'cubatas') + st(U.c.chupito, 'chupitos') + st(U.c.cigarro, 'cigarros') +
+      $('perNoche').innerHTML = st(B.fmtPts(B.puntos(U)), 'puntos') + st(U.c.cerveza, 'cervezas') + st(U.c.cubata, 'cubatas') + st(U.c.chupito, 'chupitos') + st(U.c.cigarro, 'cigarros') + st(U.c.porro, 'porros') +
         st(U.maxCombo > 1 ? 'x' + Math.min(U.maxCombo, B.COMBO_MAX) : '—', 'mejor combo') + st(U.castigos || 0, 'castigos 💀') + st(B.horasTexto(Math.max(0, ahora() - U.ultCerveza)), 'desde la última');
     } else { $('perSub').textContent = 'Conectando con la mesa…'; $('perNoche').innerHTML = ''; }
     $('sonidoVal').textContent = sonido ? 'Sí' : 'No';
