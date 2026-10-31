@@ -529,3 +529,13 @@ textarea{resize:vertical;min-height:70px}
 .d-sync{text-align:center;font-size:13px;color:var(--txt2);margin:-4px 0 -2px}
 .d-sync.mal{color:#ffb3b8}
 [data-tema="claro"] .d-sync.mal{color:#c0162b}
+
+/* ---------- Jugadores (administrador) ---------- */
+.jugadores{padding:8px 12px 12px;display:grid;gap:6px}
+.jug-fila{display:flex;align-items:center;gap:12px;padding:6px 0}
+.jug-fila + .jug-fila{border-top:1px solid rgba(255,255,255,.08)}
+.jug-fila .av{width:34px;height:34px;font-size:15px}
+.jug-fila b{flex:1}
+.jug-quitar{padding:7px 14px;border-radius:99px;font-size:14px;font-weight:700;background:rgba(255,59,71,.3)}
+.jug-anadir{display:flex;gap:8px;margin-top:6px}
+.jug-anadir button{padding:0 18px;border-radius:14px;font-weight:800;background:linear-gradient(160deg,#ffd257,#ff9d00);color:#3a1200}

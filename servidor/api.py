@@ -17,7 +17,7 @@ from urllib.parse import urlparse, parse_qs
 DIR = os.environ.get('STATE_DIRECTORY', '/var/lib/birras')
 DB = os.path.join(DIR, 'diario.sqlite')
 FOTOS = os.path.join(DIR, 'fotos-diario')
-USUARIOS = {'jorlo', 'alvaro', 'david', 'bianca', 'noelia', 'eider', 'aitor'}
+ID_JUGADOR = re.compile(r'^[a-z0-9]{2,16}$')   # la lista de jugadores la gestiona la app
 ORIGENES = {'https://queren05.github.io', 'capacitor://localhost', 'http://localhost', 'https://localhost', 'http://127.0.0.1:8933'}
 ID = re.compile(r'^[A-Za-z0-9-]{8,64}$')
 MAX_JSON, MAX_FOTO = 16 * 1024, 3 * 1024 * 1024
@@ -92,7 +92,7 @@ class API(BaseHTTPRequestHandler):
         if p.path == '/api/salud': return self.responder(200, {'ok': True})
         if p.path == '/api/diario':
             u = (q.get('u') or [''])[0]
-            if u not in USUARIOS: return self.responder(400, {'error': 'jugador desconocido'})
+            if not (isinstance(u, str) and ID_JUGADOR.match(u)): return self.responder(400, {'error': 'jugador desconocido'})
             with conectar() as c:
                 filas = c.execute('SELECT tabla, id, datos, editado, borrado FROM fichas WHERE u=?', (u,)).fetchall()
             out = {'cervezas': [], 'porProbar': [], 'borradas': []}
@@ -117,7 +117,7 @@ class API(BaseHTTPRequestHandler):
                 tabla = 'cervezas' if m.group(1) == 'cervezas' else 'porProbar'
                 d = json.loads(self.leer(MAX_JSON) or b'{}')
                 u = d.get('u')
-                if u not in USUARIOS: return self.responder(400, {'error': 'jugador desconocido'})
+                if not (isinstance(u, str) and ID_JUGADOR.match(u)): return self.responder(400, {'error': 'jugador desconocido'})
                 o = limpiar(d, tabla)
                 with bloqueo, conectar() as c:
                     ant = c.execute('SELECT editado, u FROM fichas WHERE tabla=? AND id=?', (tabla, m.group(2))).fetchone()
@@ -143,7 +143,7 @@ class API(BaseHTTPRequestHandler):
         p = urlparse(self.path); q = parse_qs(p.query)
         m = re.fullmatch(r'/api/(cervezas|porprobar)/([A-Za-z0-9-]+)', p.path)
         u = (q.get('u') or [''])[0]
-        if not (m and ID.match(m.group(2)) and u in USUARIOS): return self.responder(400, {'error': 'petición no válida'})
+        if not (m and ID.match(m.group(2)) and ID_JUGADOR.match(u)): return self.responder(400, {'error': 'petición no válida'})
         tabla = 'cervezas' if m.group(1) == 'cervezas' else 'porProbar'
         with bloqueo, conectar() as c:
             ant = c.execute('SELECT u FROM fichas WHERE tabla=? AND id=?', (tabla, m.group(2))).fetchone()

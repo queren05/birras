@@ -11,8 +11,24 @@
   const TOPIC_AVISOS = 'birras-avisos-f974dc3317';
   const NTFY = 'https://ntfy.sh';
 
-  const USERS = ['jorlo', 'alvaro', 'david', 'bianca', 'noelia', 'eider', 'aitor'];
-  const NOMBRES = { jorlo: 'Jorlo', alvaro: 'Álvaro', david: 'David', bianca: 'Bianca', noelia: 'Noelia', eider: 'Eider', aitor: 'Aitor' };
+  /* Jugadores: los de partida más los que se añadan desde la app (solo el administrador).
+   * USERS y NOMBRES se actualizan EN SITIO al cambiar la lista, así todo el código que
+   * los usa ve siempre la mesa actual. Los dados de baja conservan sus datos por si vuelven. */
+  const BASE = [['jorlo', 'Jorlo'], ['alvaro', 'Álvaro'], ['david', 'David'], ['bianca', 'Bianca'], ['noelia', 'Noelia'], ['eider', 'Eider'], ['aitor', 'Aitor']];
+  const ADMIN = 'david';
+  const USERS = BASE.map((x) => x[0]);
+  const NOMBRES = Object.fromEntries(BASE);
+  const ID_JUGADOR = /^[a-z0-9]{2,16}$/;
+  function aplicarMesa(s) {
+    s.extra = s.extra && typeof s.extra === 'object' ? s.extra : {};
+    s.bajas = Array.isArray(s.bajas) ? s.bajas : [];
+    const lista = [...BASE.map((x) => x[0]), ...Object.keys(s.extra).filter((k) => !BASE.some((b) => b[0] === k))].filter((u) => !s.bajas.includes(u));
+    USERS.length = 0; USERS.push(...lista);
+    for (const k of Object.keys(NOMBRES)) delete NOMBRES[k];
+    Object.assign(NOMBRES, Object.fromEntries(BASE), s.extra);
+  }
+  /* «Álvaro Pérez» -> «alvaroperez» */
+  const idDe = (nombre) => String(nombre).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').slice(0, 16);
 
   const TIPOS = {
     cerveza: { pts: 1, un: 'una cerveza', nombre: 'Cerveza', plural: 'Cervezas', ico: '🍺', fichas: 10, bebida: true },
@@ -48,13 +64,14 @@
         combo: 0, maxCombo: 0, racha: 0, escudo: 0, castigos: 0,
       };
     }
-    return { v: 1, users, happy: 0, rondas: 0, ultRonda: 0, diana: null, feed: [], upto: 0, ids: [], t0: 0, hist: {}, noches: [] };
+    return { v: 1, users, extra: {}, bajas: [], happy: 0, rondas: 0, ultRonda: 0, diana: null, feed: [], upto: 0, ids: [], t0: 0, hist: {}, noches: [] };
   }
 
   const clon = (o) => JSON.parse(JSON.stringify(o));
 
   /* Las fotos del estado de antes de añadir gente no traen a los nuevos. */
   function normalizar(s) {
+    aplicarMesa(s);
     const vacio = estadoInicial(0);
     for (const u of USERS) {
       const U = s.users[u];
@@ -169,6 +186,7 @@
     if (!d || !pendiente(s, msg)) return ef;
     const u = d.u, U = s.users[u];
     if (d.k === 'snap' || d.k === 'foto' || !U) { return ef; }
+    if (!USERS.includes(u)) return ef;   // un jugador dado de baja ya no puede apuntar nada
     marcar(s, msg);
     const mult = () => (t < s.happy ? 2 : 1);
 
@@ -267,6 +285,26 @@
 
     if (d.k === 'ajuste' && d.por === 'servidor' && d.campos && typeof d.campos === 'object') {
       for (const [k, v] of Object.entries(d.campos)) if (['ultCerveza', 'ultEv', 'fichas'].includes(k) && Number.isFinite(v)) U[k] = v;
+      return ef;
+    }
+
+    if (d.k === 'jugador' && d.por === ADMIN) {
+      if (d.op === 'alta') {
+        const nombre = String(d.nombre || '').replace(/\s+/g, ' ').trim().slice(0, 24);
+        const id = idDe(nombre);
+        if (!nombre || !ID_JUGADOR.test(id)) return ef;
+        if (!BASE.some((b) => b[0] === id)) s.extra[id] = nombre;
+        s.bajas = s.bajas.filter((x) => x !== id);
+        aplicarMesa(s); normalizar(s);
+        feed(s, t, ADMIN, '🪑', `${nombre} se sienta en la mesa`);
+        ef.push({ k: 'jugador', op: 'alta', id });
+      } else if (d.op === 'baja' && USERS.includes(d.id) && d.id !== ADMIN) {
+        const nombre = NOMBRES[d.id];
+        s.bajas.push(d.id);
+        aplicarMesa(s);
+        feed(s, t, ADMIN, '👋', `${nombre} se levanta de la mesa`);
+        ef.push({ k: 'jugador', op: 'baja', id: d.id });
+      }
       return ef;
     }
 
@@ -379,7 +417,7 @@
   return {
     TOPIC, TOPIC_AVISOS, NTFY, USERS, NOMBRES, TIPOS, TIENDA, SIMBOLOS, SLOT_COSTE,
     COMBO_VENTANA, COMBO_MAX, HORA_SECA,
-    estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
+    ADMIN, idDe, estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
     secos, insulto, horasTexto, clon,
   };
 });

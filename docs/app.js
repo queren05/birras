@@ -28,10 +28,19 @@
    * de casa las guarda y las vuelve a publicar para que no caduquen a las 12 h. */
   let fotos = {}; try { fotos = JSON.parse(leer('birras-fotos') || '{}'); } catch (e) { fotos = {}; }
   const fotoValida = (x) => typeof x === 'string' && x.startsWith('data:image/jpeg;base64,') && x.length < 3900;
-  function av(u, extra = '') {
-    const f = fotos[u];
-    return f ? `<span class="av ${u} con-foto ${extra}" style="background-image:url('${f}')"></span>` : `<span class="av ${u} ${extra}">${inicial(u)}</span>`;
+  const COLORES_NUEVOS = [['#ffd84a', '#d98a00'], ['#7af0c8', '#0f8f6c'], ['#ff8fd2', '#b0247a'], ['#9fd0ff', '#2a6fd6'], ['#ffb38a', '#c94a1c'], ['#c8a6ff', '#6a3fd1']];
+  const FIJOS = ['jorlo', 'alvaro', 'david', 'bianca', 'noelia', 'eider', 'aitor'];
+  function colorDe(u) {
+    if (FIJOS.includes(u)) return null;
+    let h = 0; for (const ch of u) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return COLORES_NUEVOS[h % COLORES_NUEVOS.length];
   }
+  function av(u, extra = '') {
+    const f = fotos[u], col = colorDe(u);
+    if (f) return `<span class="av ${u} con-foto ${extra}" style="background-image:url('${f}')"></span>`;
+    return `<span class="av ${u} ${extra}"${col ? ` style="background:linear-gradient(145deg,${col[0]},${col[1]})"` : ''}>${inicial(u)}</span>`;
+  }
+  const colorBarra = (u) => (colorDe(u) ? ` style="background:${colorDe(u)[1]}"` : '');
   function recibirFoto(d) {
     if (!B.USERS.includes(d.u)) return false;
     const antes = fotos[d.u] || null;
@@ -199,8 +208,8 @@
     $('tCigarro').textContent = tot('cigarro');
     const aporte = (u) => ptsDe(u);
     const todo = B.USERS.reduce((n, u) => n + aporte(u), 0);
-    $('barraRep').innerHTML = todo ? B.USERS.map((u) => `<i class="c-${u}" style="width:${aporte(u) / todo * 100}%"></i>`).join('') : '';
-    $('leyenda').innerHTML = B.USERS.filter((u) => aporte(u) > 0).map((u) => `<span><i class="c-${u}"></i>${B.NOMBRES[u]} ${B.fmtPts(aporte(u))}</span>`).join('') || '<span>Nadie ha puntuado todavía</span>';
+    $('barraRep').innerHTML = todo ? B.USERS.map((u) => `<i class="c-${u}" style="width:${aporte(u) / todo * 100}%${colorDe(u) ? ';background:' + colorDe(u)[1] : ''}"></i>`).join('') : '';
+    $('leyenda').innerHTML = B.USERS.filter((u) => aporte(u) > 0).map((u) => `<span><i class="c-${u}"${colorBarra(u)}></i>${B.NOMBRES[u]} ${B.fmtPts(aporte(u))}</span>`).join('') || '<span>Nadie ha puntuado todavía</span>';
 
     // Ranking
     const orden = B.USERS.slice().sort((a, b) => aporte(b) - aporte(a) || S.users[b].fichas - S.users[a].fichas);
@@ -234,6 +243,7 @@
     $('feedLargo').innerHTML = S.feed.map(fila).join('') || vacio;
 
     // Lo mío
+    if (yo && !B.USERS.includes(yo) && leer('birras-edad') === 'ok') { yo = null; guardar('birras-yo', ''); pedirSilla(); toast('Tu jugador ya no está en la mesa. Elige otro.'); }
     if (!yo || !S.users[yo]) return;
     const U = S.users[yo];
     $('yoAv').outerHTML = av(yo).replace('<span ', '<span id="yoAv" ');
@@ -534,7 +544,26 @@
     $('perDiario').innerHTML = D ? st(D.total, 'registradas') + st(D.distintas, 'distintas') + st(D.paises, 'países') + st(D.media ? D.media.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' ★' : '—', 'nota media') +
       st(D.estilo || '—', 'estilo favorito') + st(D.favoritas, 'favoritas') : '<div class="vacio">Cargando…</div>';
     $('sonidoVal').textContent = sonido ? 'Sí' : 'No';
+    const admin = yo === B.ADMIN;
+    $('perJugadores').hidden = !admin;
+    if (admin) $('jugLista').innerHTML = B.USERS.map((u) => `<div class="jug-fila">${av(u)}<b>${esc(B.NOMBRES[u])}</b>${u === B.ADMIN ? '<span class="sub">administrador</span>' : `<button class="pulsable jug-quitar" data-baja="${u}">Quitar</button>`}</div>`).join('');
   }
+  $('jugLista').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-baja]'); if (!b || yo !== B.ADMIN) return;
+    const u = b.dataset.baja;
+    if (!await preguntar(`¿Quitar a ${B.NOMBRES[u]}?`, 'Desaparece de la mesa, del bote y de la clasificación. Sus datos se guardan: si la vuelves a añadir con el mismo nombre, recupera lo suyo.', 'Quitar', true)) return;
+    publicar({ k: 'jugador', op: 'baja', id: u, u: B.ADMIN, por: B.ADMIN });
+  });
+  $('jugAnadir').addEventListener('click', async () => {
+    if (yo !== B.ADMIN) return;
+    const nombre = $('jugNombre').value.replace(/\s+/g, ' ').trim();
+    const id = B.idDe(nombre);
+    if (!nombre || id.length < 2) return toast('Escribe un nombre de al menos 2 letras.');
+    if (B.USERS.includes(id)) return toast(`${B.NOMBRES[id]} ya está en la mesa.`);
+    publicar({ k: 'jugador', op: 'alta', nombre, u: B.ADMIN, por: B.ADMIN });
+    $('jugNombre').value = '';
+    vibrar('medio'); sonar('compra');
+  });
   $('sonidoFila').onclick = () => { sonido = !sonido; guardar('birras-sonido', sonido ? 'si' : 'no'); iconoSonido(); pintarPerfil(); };
   const iconoSonido = () => { $('sonidoBtn').innerHTML = sonido
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>'
@@ -630,7 +659,10 @@
   function animar(efectos, mio) {
     for (const e of efectos) {
       const quien = B.NOMBRES[e.u] || '';
-      if (e.k === 'noche') {
+      if (e.k === 'jugador') {
+        toast(e.op === 'alta' ? `🪑  ${B.NOMBRES[e.id]} se sienta en la mesa` : '👋  Un jugador se ha levantado de la mesa');
+        $('tienda').dataset.h = '';
+      } else if (e.k === 'noche') {
         flotante('🌅 Noche cerrada', 'bote a cero'); confeti(80, ['🌅', '🍺']); sonar('jackpot'); pila = []; guardarPila();
       } else if (e.k === 'quita' || e.k === 'corrige') {
         if (!mio) toast(`✏️  ${e.k === 'quita' ? '−1' : '+1'} ${B.TIPOS[e.t].nombre.toLowerCase()} a ${quien}`);
