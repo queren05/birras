@@ -27,7 +27,7 @@
         simbolos: B.SIMBOLOS, slotCoste: B.SLOT_COSTE,
         rascaSimbolos: B.SIMBOLOS_RASCA, rascaCoste: B.RASCA_COSTE,
         apuestaMin: B.APUESTA_MIN, comboMax: B.COMBO_MAX, comboVentana: B.COMBO_VENTANA, horaSeca: B.HORA_SECA,
-        retoEspera: B.RETO_ESPERA, admin: B.ADMIN,
+        retoEspera: B.RETO_ESPERA, admin: B.ADMIN, caballos: B.CABALLOS, carreraPaga: B.CARRERA_PAGA, porraPaga: B.PORRA_PAGA,
       });
     },
     premioSlot(json) { return JSON.stringify(B.premioSlot(JSON.parse(json))); },
@@ -36,6 +36,7 @@
     tirarRasca() { return JSON.stringify(B.tirarRasca()); },
     ruleta(r, tipo, n) { const A = B.APUESTAS_RULETA[tipo]; return JSON.stringify({ gana: A.gana(r, n), paga: A.paga, nombre: A.nombre(n), color: B.colorRuleta(r) }); },
     dados(a, b, ap) { const A = B.APUESTAS_DADOS[ap]; return JSON.stringify({ gana: A.gana(a + b), paga: A.paga, nombre: A.nombre }); },
+    bj(j, c, doble) { return JSON.stringify(B.resultadoBJ(JSON.parse(j), JSON.parse(c), !!doble)); },
     idDe(nombre) { return B.idDe(nombre); },
     insulto(u, seg, semilla) { return B.NOMBRES[u] ? B.insulto(u, seg, semilla) : ''; },
 
@@ -93,8 +94,9 @@
       const hist = Object.keys(S.hist || {}).map(Number).sort((a, b) => a - b).map((k) => ({ t: k * 900, f: S.hist[k].concat([0, 0, 0, 0, 0]).slice(0, 5) }));
       const noches = (S.noches || []).map((n) => ({ a: n.a, b: n.b, c: n.c.concat([0, 0, 0, 0, 0]).slice(0, 5), p: n.p, pTxt: B.fmtPts(n.p), top: n.top.map((x) => ({ id: x[0], nombre: B.NOMBRES[x[0]] || x[0], ptsTxt: B.fmtPts(x[1]) })) }));
       const retos = (S.retos || []).map((r) => ({ rid: r.rid, de: r.de, a: r.a, deN: B.NOMBRES[r.de] || r.de, aN: B.NOMBRES[r.a] || r.a, cant: r.cant, t: r.t, hasta: r.hasta || 0, copa: B.principal(r.a) === 'cubata' }));
+      const porras = (S.porras || []).map((p) => ({ u: p.u, a: p.a, uN: B.NOMBRES[p.u] || p.u, aN: B.NOMBRES[p.a] || p.a, cant: p.cant, t: p.t }));
       return JSON.stringify({
-        listo: true, now, jugadores, cervezas: B.totalGrupo(S), tot: B.ORDEN.map((t) => B.totalGrupo(S, t)), puntos: total, ptsTxt: B.fmtPts(total),
+        listo: true, porras, now, jugadores, cervezas: B.totalGrupo(S), tot: B.ORDEN.map((t) => B.totalGrupo(S, t)), puntos: total, ptsTxt: B.fmtPts(total),
         feed: S.feed.map((f) => ({ t: f.t, ico: f.ico, txt: f.txt })), muro, mio, records, hist, noches, retos,
         t0: S.t0 || 0, rondas: S.rondas || 0, happy: S.happy || 0, sinCerveza: S.sinCerveza || [],
       });

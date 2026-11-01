@@ -280,6 +280,30 @@ final class Mesa: ObservableObject {
         return r
     }
 
+    func blackjack(cant: Int, j: [Int], c: [Int], doble: Bool) {
+        guard let y = yo else { return }
+        publicar(["k": "bj", "u": y, "cant": cant, "j": j, "c": c, "doble": doble])
+    }
+
+    func crash(cant: Int, x: Double, r: Double) {
+        guard let y = yo else { return }
+        publicar(["k": "crash", "u": y, "cant": cant, "x": x, "r": r])
+    }
+
+    func carrera(cant: Int, ap: Int) -> Int? {
+        guard let y = yo else { return nil }
+        let r = Int.random(in: 0..<C.caballos.count)
+        publicar(["k": "carrera", "u": y, "cant": cant, "ap": ap, "r": r])
+        return r
+    }
+
+    func porra(_ a: String, cant: Int) {
+        guard let y = yo else { return }
+        publicar(["k": "porra", "u": y, "a": a, "cant": cant])
+        avisar("🔮  \(cant) fichas a que \(nombre(a)) bebe la siguiente")
+        Sonido.shared.tocar(.compra); Haptica.medio()
+    }
+
     func dobleONada() {
         guard let y = yo else { return }
         publicar(["k": "doble", "u": y, "gana": Double.random(in: 0..<1) < 0.47])
@@ -431,6 +455,16 @@ final class Mesa: ObservableObject {
                 if !mio && neto >= 100 { avisar("\(e.k == "ruleta" ? "🎡" : e.k == "dados" ? "🎲" : "🎟️")  \(quien) gana \(neto) fichas") }
             case "slot":
                 break
+            case "bj", "crash", "carrera":
+                if !mio && (e.neto ?? 0) >= 100 { avisar("\(["bj": "🃏", "crash": "🚀", "carrera": "🏁"][e.k] ?? "🎰")  \(quien) gana \(e.neto ?? 0) fichas") }
+                if !mio && e.k == "bj" && e.res == "blackjack" { avisar("🃏  ¡\(quien) saca BLACKJACK!") }
+            case "porra":
+                if e.op == "apuesta" && !mio { avisar("🔮  \(quien) apuesta \(e.cant ?? 0) a que \(nombre(e.a ?? "")) bebe la siguiente") }
+                if e.op == "resuelve" {
+                    if let g = e.ganan?.first(where: { $0.u == yo }) { lanzarFiesta("+\(g.fichas)", "porra acertada", ["🔮", "🪙"], 100); Sonido.shared.tocar(.jackpot); Haptica.fuerte() }
+                    else if let p = e.pierden?.first(where: { $0.u == yo }) { avisar("🔮  Porra perdida: ha bebido \(quien). −\(p.fichas)") }
+                    else if let g = e.ganan, !g.isEmpty { avisar("🔮  \(g.map { nombre($0.u) }.joined(separator: ", ")) acierta la porra") }
+                }
             case "doble":
                 let antes = e.antes ?? 0
                 if mio {

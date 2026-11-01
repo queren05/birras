@@ -73,6 +73,16 @@ struct Vista: Decodable {
         var id: String { rid }
     }
 
+    struct Porra: Decodable, Identifiable {
+        let u: String
+        let a: String
+        let uN: String
+        let aN: String
+        let cant: Int
+        let t: Double
+        var id: String { "\(u)-\(a)-\(t)" }
+    }
+
     let listo: Bool
     let now: Double?
     let jugadores: [Jugador]?
@@ -87,6 +97,7 @@ struct Vista: Decodable {
     let hist: [Cuarto]?
     let noches: [Noche]?
     let retos: [Reto]?
+    let porras: [Porra]?
     let t0: Double?
     let rondas: Int?
     let happy: Double?
@@ -123,6 +134,9 @@ struct Constantes: Decodable {
     let horaSeca: Double
     let retoEspera: Double
     let admin: String
+    let caballos: [String]
+    let carreraPaga: Int
+    let porraPaga: Int
 
     func tipo(_ id: String) -> Tipo { tipos.first { $0.id == id } ?? tipos[0] }
 }
@@ -133,6 +147,12 @@ struct Premio: Decodable {
     let txt: String
     let gordo: Bool?
     let simbolo: String?
+}
+
+struct ResultadoBJ: Decodable {
+    let res: String
+    let tj: Int
+    let tc: Int
 }
 
 struct ResultadoApuesta: Decodable {
@@ -161,8 +181,12 @@ struct Efecto: Decodable {
     let p: String?
     let obj: String?
     let id: String?
+    let res: String?
+    let ganan: [PorraRes]?
+    let pierden: [PorraRes]?
+    struct PorraRes: Decodable { let u: String; let fichas: Int }
 
-    enum CodingKeys: String, CodingKey { case k, u, t, n, fichas, txt, op, de, a, cant, neto, gana, antes, p, obj, id }
+    enum CodingKeys: String, CodingKey { case k, u, t, n, fichas, txt, op, de, a, cant, neto, gana, antes, p, obj, id, res, ganan, pierden }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         k = (try? c.decode(String.self, forKey: .k)) ?? ""
@@ -181,6 +205,9 @@ struct Efecto: Decodable {
         p = try? c.decode(String.self, forKey: .p)
         obj = try? c.decode(String.self, forKey: .obj)
         id = try? c.decode(String.self, forKey: .id)
+        res = try? c.decode(String.self, forKey: .res)
+        ganan = try? c.decode([PorraRes].self, forKey: .ganan)
+        pierden = try? c.decode([PorraRes].self, forKey: .pierden)
     }
 }
 

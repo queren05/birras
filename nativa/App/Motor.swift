@@ -38,6 +38,7 @@ final class Motor {
     func tirarRasca() -> [Int] { decodificar([Int].self, texto("tirarRasca")) ?? [0, 1, 2, 3, 4, 5] }
     func ruleta(_ r: Int, tipo: String, n: Int?) -> ResultadoApuesta? { decodificar(ResultadoApuesta.self, texto("ruleta", [r, tipo, n ?? NSNull()])) }
     func dados(_ a: Int, _ b: Int, ap: String) -> ResultadoApuesta? { decodificar(ResultadoApuesta.self, texto("dados", [a, b, ap])) }
+    func blackjack(_ j: [Int], _ c: [Int], doble: Bool) -> ResultadoBJ? { decodificar(ResultadoBJ.self, texto("bj", [json(j), json(c), doble])) }
     func idDe(_ nombre: String) -> String { texto("idDe", [nombre]) }
     func insulto(_ u: String, seg: Double, semilla: Int) -> String { texto("insulto", [u, seg, semilla]) }
 
