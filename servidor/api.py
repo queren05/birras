@@ -5,6 +5,7 @@ Escucha en 127.0.0.1:8790; Tailscale Funnel la publica en https://servidor.tail9
 para que llegue desde cualquier móvil sin abrir puertos del router.
 
   GET    /api/salud
+  GET    /api/estado     resumen de la noche (widgets)     GET /api/historial  todas las noches cerradas
   GET    /api/diario?u=<jugador>            -> {cervezas:[...], porProbar:[...]}
   PUT    /api/cervezas/<id>    (JSON)       DELETE /api/cervezas/<id>?u=
   PUT    /api/porprobar/<id>   (JSON)       DELETE /api/porprobar/<id>?u=
@@ -92,6 +93,11 @@ class API(BaseHTTPRequestHandler):
     def do_GET(self):
         p = urlparse(self.path); q = parse_qs(p.query)
         if p.path == '/api/salud': return self.responder(200, {'ok': True})
+        # Lo que escribe el guardián cada 5 min: resumen para widgets e histórico de noches
+        if p.path in ('/api/estado', '/api/historial'):
+            f = os.path.join(DIR, 'resumen.json' if p.path == '/api/estado' else 'noches.json')
+            if not os.path.exists(f): return self.responder(200, {} if p.path == '/api/estado' else [])
+            with open(f, 'rb') as fh: return self.responder(200, cuerpo=fh.read(), cache='public, max-age=60')
         if p.path == '/api/diario':
             u = (q.get('u') or [''])[0]
             if not (isinstance(u, str) and ID_JUGADOR.match(u)): return self.responder(400, {'error': 'jugador desconocido'})

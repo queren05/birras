@@ -70,7 +70,7 @@
         combo: 0, maxCombo: 0, racha: 0, escudo: 0, castigos: 0,
       };
     }
-    return { v: 1, users, extra: {}, bajas: [], sinCerveza: [], happy: 0, rondas: 0, ultRonda: 0, diana: null, feed: [], upto: 0, ids: [], t0: 0, hist: {}, noches: [] };
+    return { v: 1, users, extra: {}, bajas: [], sinCerveza: [], happy: 0, rondas: 0, ultRonda: 0, diana: null, feed: [], upto: 0, ids: [], t0: 0, hist: {}, noches: [], retos: [] };
   }
 
   const clon = (o) => JSON.parse(JSON.stringify(o));
@@ -89,6 +89,7 @@
     if (!s.hist) s.hist = {};
     if (!s.noches) s.noches = [];
     if (!s.feed) s.feed = [];
+    if (!Array.isArray(s.retos)) s.retos = [];
     s.ids = (s.ids || []).map((x) => (Array.isArray(x) ? x : [x, s.upto]));
     return s;
   }
@@ -113,6 +114,9 @@
     siete: { paga: 4, gana: (x) => x === 7, nombre: 'siete justo' },
   };
   const APUESTA_MIN = 5;
+  /* Retos entre dos: «te reto a que te bebes otra en 10 minutos». Los dos ponen las mismas
+   * fichas; si el retado bebe a tiempo se lo lleva todo, si no, el que retó. */
+  const RETO_PLAZO = 10 * 60, RETO_ESPERA = 10 * 60;
   /* Cantidad válida para apostar (entera, mínimo 5, sin pasar de lo que tienes) o 0 si no vale */
   function apostable(U, cant) {
     return Number.isInteger(cant) && cant >= APUESTA_MIN && cant <= U.fichas ? cant : 0;
@@ -218,6 +222,7 @@
       if (!U.gan || !Object.keys(U.gan).length) delete U.gan;
     }
     for (const f of o.feed) delete f.u;
+    for (const n of o.noches || []) delete n.j;   // el detalle por jugador lo archiva el servidor
     o.feed = o.feed.slice(0, 12);
     while (JSON.stringify({ k: 'snap', s: o }).length > 3600 && o.feed.length) o.feed.pop();
     while (JSON.stringify({ k: 'snap', s: o }).length > 3600 && Object.keys(o.hist).length) delete o.hist[Object.keys(o.hist).sort((a, b) => a - b)[0]];
@@ -230,10 +235,33 @@
     l.push(n); if (l.length > 5) l.shift();
   }
 
+  /* Retos caducados: el que no se aceptó a tiempo devuelve las fichas; el aceptado y no
+   * cumplido se lo lleva el que retó. Se resuelve con la hora de cualquier mensaje posterior. */
+  function vencerRetos(s, t, ef) {
+    if (!s.retos || !s.retos.length) return;
+    s.retos = s.retos.filter((r) => {
+      const De = s.users[r.de], A = s.users[r.a];
+      if (!r.hasta && t - r.t > RETO_ESPERA) {
+        if (De) De.fichas += r.cant;
+        feed(s, t, r.de, '⌛', `${NOMBRES[r.a] || r.a} no contesta al reto de ${NOMBRES[r.de] || r.de}`);
+        ef.push({ k: 'reto', op: 'caduca', de: r.de, a: r.a });
+        return false;
+      }
+      if (r.hasta && t > r.hasta) {
+        if (De) De.fichas += r.cant * 2;
+        feed(s, t, r.de, '🤺', `${NOMBRES[r.de] || r.de} gana el reto: ${NOMBRES[r.a] || r.a} no bebió a tiempo · +${r.cant * 2}`);
+        ef.push({ k: 'reto', op: 'gana', u: r.de, de: r.de, a: r.a, cant: r.cant });
+        return false;
+      }
+      return true;
+    });
+  }
+
   /* Aplica un mensaje {id, time, d} y devuelve efectos para animar. */
   function aplicar(s, msg) {
     const d = msg.d, t = msg.time, ef = [];
     if (!d || !pendiente(s, msg)) return ef;
+    if (d.k !== 'snap' && d.k !== 'foto') vencerRetos(s, t, ef);
     const u = d.u, U = s.users[u];
     if (d.k === 'snap' || d.k === 'foto' || !U) { return ef; }
     if (!USERS.includes(u)) return ef;   // un jugador dado de baja ya no puede apuntar nada
@@ -287,6 +315,15 @@
       U.fichas += ganadas;
       apilar(U, d.t, ganadas);
       ef.push({ k: 'bebida', u, t: d.t, fichas: ganadas });
+      if (T.bebida) {
+        s.retos = s.retos.filter((r) => {
+          if (r.a !== u || !r.hasta || t > r.hasta) return true;
+          U.fichas += r.cant * 2;
+          ef.push({ k: 'reto', op: 'gana', u, de: r.de, a: u, cant: r.cant });
+          feed(s, t, u, '🤺', `${NOMBRES[u]} cumple el reto de ${NOMBRES[r.de] || r.de} · +${r.cant * 2}`);
+          return false;
+        });
+      }
       feed(s, t, u, T.ico, `${NOMBRES[u]} +1 ${T.nombre.toLowerCase()}${m > 1 ? ` (x${m})` : ''} · +${ganadas}`);
 
       if (d.t === 'cerveza') {
@@ -368,6 +405,34 @@
       return ef;
     }
 
+    /* ---------- Retos entre dos ---------- */
+    if (d.k === 'reto') {
+      if (d.op === 'lanzar') {
+        const cant = apostable(U, d.cant);
+        if (!cant || !USERS.includes(d.a) || d.a === u || typeof d.rid !== 'string' || s.retos.some((r) => r.rid === d.rid)) return ef;
+        if (s.retos.some((r) => r.a === d.a && r.de === u)) return ef;   // uno pendiente por pareja
+        U.fichas -= cant;
+        s.retos.push({ rid: d.rid.slice(0, 12), de: u, a: d.a, cant, t, hasta: 0 });
+        feed(s, t, u, '🤺', `${NOMBRES[u]} reta a ${NOMBRES[d.a]}: otra en 10 min por ${cant} fichas`);
+        ef.push({ k: 'reto', op: 'lanzar', u, de: u, a: d.a, cant });
+        return ef;
+      }
+      const r = s.retos.find((x) => x.rid === d.rid);
+      if (!r) return ef;
+      if (d.op === 'aceptar' && r.a === u && !r.hasta) {
+        if (U.fichas < r.cant) return ef;
+        U.fichas -= r.cant; r.hasta = t + RETO_PLAZO;
+        feed(s, t, u, '🤺', `${NOMBRES[u]} acepta el reto de ${NOMBRES[r.de]}: tiene 10 min`);
+        ef.push({ k: 'reto', op: 'aceptar', u, de: r.de, a: u, cant: r.cant });
+      } else if ((d.op === 'rechazar' && r.a === u && !r.hasta) || (d.op === 'cancelar' && r.de === u && !r.hasta)) {
+        if (s.users[r.de]) s.users[r.de].fichas += r.cant;
+        s.retos = s.retos.filter((x) => x !== r);
+        feed(s, t, u, '🏳️', d.op === 'rechazar' ? `${NOMBRES[u]} se raja ante ${NOMBRES[r.de]}` : `${NOMBRES[u]} retira el reto a ${NOMBRES[r.a]}`);
+        ef.push({ k: 'reto', op: d.op, u, de: r.de, a: r.a });
+      }
+      return ef;
+    }
+
     if (d.k === 'doble' && U.fichas >= 20) {
       const antes = U.fichas;
       U.fichas = d.gana ? antes * 2 : 0;
@@ -418,7 +483,9 @@
       const tot = ORDEN.map((x) => totalGrupo(s, x));
       if (tot.some(Boolean)) {
         const top = USERS.map((x) => [x, puntos(s.users[x])]).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 3);
-        s.noches.unshift({ a: s.t0 || t, b: t, c: tot, p: Math.round(USERS.reduce((n, x) => n + puntos(s.users[x]), 0) * 10) / 10, top });
+        // Detalle por jugador [id, puntos, fichas, cerveza, cubata, chupito, cigarro, porro, mejor combo] para el histórico
+        const j = USERS.filter((x) => Object.values(s.users[x].c).some(Boolean)).map((x) => { const X = s.users[x]; return [x, puntos(X), X.fichas, ...ORDEN.map((o) => X.c[o]), X.maxCombo]; });
+        s.noches.unshift({ a: s.t0 || t, b: t, c: tot, p: Math.round(USERS.reduce((n, x) => n + puntos(s.users[x]), 0) * 10) / 10, top, j });
         s.noches = s.noches.slice(0, 4);
       }
       for (const x of USERS) {
@@ -426,7 +493,8 @@
         X.c = { cerveza: 0, cubata: 0, chupito: 0, cigarro: 0, porro: 0 };
         Object.assign(X, { hc: [], gan: {}, baseCerveza: 0, ultCerveza: t, ultEv: 0, primera: 0, ultBebida: 0, ultCigarro: 0, combo: 0, maxCombo: 0, castigos: 0, racha: 0, escudo: 0 });
       }
-      Object.assign(s, { hist: {}, rondas: 0, ultRonda: 0, happy: 0, diana: null, t0: 0, feed: [] });
+      for (const r of s.retos) { if (s.users[r.de]) s.users[r.de].fichas += r.cant; if (r.hasta && s.users[r.a]) s.users[r.a].fichas += r.cant; }
+      Object.assign(s, { hist: {}, rondas: 0, ultRonda: 0, happy: 0, diana: null, t0: 0, feed: [], retos: [] });
       feed(s, t, u, '🌅', `${NOMBRES[u]} cierra la noche. Bote a cero.`);
       ef.push({ k: 'noche', u });
       return ef;
@@ -529,7 +597,7 @@
   return {
     TOPIC, TOPIC_AVISOS, NTFY, USERS, NOMBRES, TIPOS, TIENDA, SIMBOLOS, SLOT_COSTE,
     COMBO_VENTANA, COMBO_MAX, HORA_SECA,
-    ADMIN, idDe, principal, colorRuleta, APUESTAS_RULETA, APUESTAS_DADOS, APUESTA_MIN, SIMBOLOS_RASCA, RASCA_COSTE, PREMIOS_RASCA, premioRasca, tirarRasca, estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
+    ADMIN, idDe, principal, RETO_PLAZO, RETO_ESPERA, vencerRetos, colorRuleta, APUESTAS_RULETA, APUESTAS_DADOS, APUESTA_MIN, SIMBOLOS_RASCA, RASCA_COSTE, PREMIOS_RASCA, premioRasca, tirarRasca, estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
     secos, insulto, horasTexto, clon,
   };
 });

@@ -27,6 +27,7 @@
 
   <!-- ===================== BOTE ===================== -->
   <section class="vista" data-vista="bote">
+    <div class="retos" id="retos" hidden></div>
     <div class="modulo" data-modulo="bote" data-nombre="El bote">
     <div class="bote glass">
       <div class="etq">El bote de la mesa</div>
@@ -179,6 +180,12 @@
       <div class="tip glass" id="tip" hidden></div>
     </div>
     <div class="records" id="records"></div>
+    <button class="compartir pulsable" id="compartirNoche">Compartir el resumen de la noche</button>
+    <div class="historico glass">
+      <div class="clasif-cab"><span class="etq" id="histT">Este mes</span><span class="sub" id="histSub">noches cerradas</span></div>
+      <div class="hist-meses" id="histMeses" role="tablist" aria-label="Elegir mes"></div>
+      <div id="histRank"><div class="vacio">Cargando el histórico…</div></div>
+    </div>
     <div class="lista glass">
       <h3 class="etq">Noches anteriores</h3>
       <div id="noches"></div>

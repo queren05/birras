@@ -741,3 +741,41 @@ html{-webkit-overflow-scrolling:touch}
 .numeros{gap:4px}
 .num-b{height:32px;font-size:13px;border-radius:9px}
 .tapete .ap-b{padding:9px 4px 7px}
+
+/* ================= RETOS, HISTÓRICO, COMPARTIR ================= */
+.retos{display:grid;gap:10px;margin-bottom:12px}
+.reto{padding:14px 16px;display:grid;gap:10px}
+.reto .r-top{display:flex;align-items:center;gap:10px}
+.reto .r-top b{font-size:16px;line-height:1.25}
+.reto .r-top .av{flex:none}
+.reto .r-sub{font-size:13.5px;color:var(--txt2)}
+.reto .r-acc{display:flex;gap:8px}
+.reto .r-acc button{flex:1;padding:11px 12px;border-radius:16px;font-weight:800;font-size:15px;background:rgba(255,255,255,.14)}
+.reto .r-acc button.si{background:linear-gradient(135deg,#ffcf3a,#ff8a1a);color:#2a1100}
+.reto.activo{border:1px solid rgba(255,207,58,.45)}
+.reto .r-reloj{font-family:var(--fr);font-weight:900;font-size:26px;font-variant-numeric:tabular-nums}
+.reto-fix{display:grid;gap:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.1)}
+.reto-fix .fichas-reto{display:flex;gap:8px;flex-wrap:wrap}
+.reto-fix .fichas-reto button{padding:8px 14px;border-radius:99px;background:rgba(255,255,255,.14);font-weight:800}
+.reto-fix .fichas-reto button.on{background:#ffcf3a;color:#2a1100}
+.reto-fix .lanzar{padding:12px;border-radius:16px;font-weight:800;background:linear-gradient(135deg,#ff3d81,#ff8a1a);color:#fff}
+.reto-fix .lanzar:disabled{opacity:.45}
+.compartir{width:100%;padding:15px;border-radius:20px;font-weight:800;font-size:16px;color:#2a1100;background:linear-gradient(135deg,#ffd84a,#ff9a1a);box-shadow:0 8px 22px rgba(255,140,30,.3)}
+.historico{padding:8px 6px 10px}
+.hist-meses{display:flex;gap:6px;overflow-x:auto;padding:4px 10px 8px;scrollbar-width:none}
+.hist-meses::-webkit-scrollbar{display:none}
+.hist-meses button{flex:none;padding:6px 12px;border-radius:99px;background:rgba(255,255,255,.1);font-weight:700;font-size:13.5px;text-transform:capitalize}
+.hist-meses button.on{background:rgba(255,255,255,.9);color:#2a0f1f}
+.hist-fila{display:grid;grid-template-columns:22px 34px 1fr auto;align-items:center;gap:10px;padding:8px 10px}
+.hist-fila + .hist-fila{border-top:1px solid rgba(255,255,255,.07)}
+.hist-fila .pos{font-weight:800;color:var(--txt2);text-align:center}
+.hist-fila .det{font-size:12.5px;color:var(--txt2)}
+.hist-fila .cifras{text-align:right}
+.hist-fila .cifras b{display:block;font-family:var(--fr);font-weight:900;font-size:18px}
+.hist-fila .cifras span{font-size:12px;color:var(--txt2)}
+[data-tema="claro"] .reto .r-acc button,[data-tema="claro"] .reto-fix .fichas-reto button,[data-tema="claro"] .hist-meses button{background:rgba(0,0,0,.07)}
+[data-tema="claro"] .hist-meses button.on{background:#2a0f1f;color:#fff}
+.visor.resumen img{height:auto;max-height:72vh;width:auto;max-width:92vw;object-fit:contain;border-radius:18px}
+.visor.resumen figcaption{font-size:15px;font-weight:700;color:rgba(255,255,255,.75);text-align:center;padding:0 24px}
+.reto-fix .fichas-reto{justify-content:center}
+.reto-fix{text-align:center}

@@ -88,7 +88,7 @@
     grande.onload = () => { if ($('capaVisor').classList.contains('on')) $('visorImg').src = grande.src; };
     grande.src = `${API}/api/perfil/${u}?v=${fotos[u].length}${fotos[u].slice(-12).replace(/[^A-Za-z0-9]/g, '')}`;
   }
-  $('capaVisor').addEventListener('click', () => $('capaVisor').classList.remove('on'));
+  $('capaVisor').addEventListener('click', () => $('capaVisor').classList.remove('on', 'resumen'));
   // Tocar cualquier foto de perfil la amplía (menos el botón de arriba, que abre tu perfil)
   document.addEventListener('click', (e) => {
     const a = e.target.closest('.av.con-foto');
@@ -165,7 +165,9 @@
         if (p && p.d.k === 'foto') recibirFoto(p.d);
         if (p && p.d.k === 'snap') ultSnap = Math.max(ultSnap, m.time);
       }
-      S = B.reconstruir(ms, null) || B.estadoInicial(Math.floor(Date.now() / 1000));
+      // Sin ninguna foto del estado en el canal (no debería pasar: el servidor publica una), se parte de cero con lo que haya
+      const primero = ms.find((m) => m.event === 'message');
+      S = B.reconstruir(ms, null) || B.reconstruir(ms, B.normalizar(B.estadoInicial(primero ? primero.time - 1 : Math.floor(Date.now() / 1000))));
       pintar();
       conectar();
     } catch (e) {
@@ -308,6 +310,7 @@
     $('deshacer').hidden = !ult;
     if (ult) $('deshacer').textContent = `↩︎ Deshacer: ${ult.n > 0 ? '+1' : '−1'} ${B.TIPOS[ult.t].nombre.toLowerCase()}${ult.u !== yo ? ` de ${B.NOMBRES[ult.u]}` : ''}${pila.length > 1 ? ` · quedan ${pila.length}` : ''}`;
     if ($('capaFix').classList.contains('on')) pintarFix();
+    pintarRetos();
     pintarTienda(U);
     pintarCola();
     pintarApuesta();
@@ -447,6 +450,7 @@
         notificar('🎯 Te han apuntado', `${B.NOMBRES[S.diana.por]} dice que bebas YA.`);
       }
     }
+    pintarRetos();
     if (Math.floor(now) % 15 === 0) pintar();
   }
 
@@ -488,6 +492,17 @@
       if (!yo) return pedirSilla();
       if (b.dataset.pw === 'diana') { dianaAbierta = !dianaAbierta; $('tienda').dataset.h = ''; pintar(); return; }
       publicar({ k: 'pw', u: yo, p: b.dataset.pw }); sonar('compra'); vibrar('medio');
+    } else if (b.dataset.retocant) {
+      retoCant = +b.dataset.retocant; pintarFix(); vibrar('suave');
+    } else if (b.dataset.retar) {
+      const a = b.dataset.retar;
+      if (!yo || !S || S.users[yo].fichas < retoCant) return toast('No tienes fichas para ese reto.');
+      publicar({ k: 'reto', op: 'lanzar', u: yo, a, cant: retoCant, rid: Math.random().toString(36).slice(2, 10) });
+      $('capaFix').classList.remove('on'); fixU = null;
+      toast(`🤺  Reto lanzado a ${B.NOMBRES[a]}. Tiene 10 min para aceptar.`); sonar('compra'); vibrar('medio');
+    } else if (b.dataset.reto) {
+      const [op, rid] = b.dataset.reto.split(':');
+      publicar({ k: 'reto', op, u: yo, rid }); vibrar('medio'); sonar(op === 'aceptar' ? 'combo' : 'pierde');
     } else if (b.dataset.diana) {
       dianaAbierta = false; publicar({ k: 'pw', u: yo, p: 'diana', obj: b.dataset.diana }); sonar('compra'); vibrar('medio');
     }
@@ -499,6 +514,7 @@
     guardar('birras-tab', v);
     document.body.dataset.vista = v;
     if (v === 'noche' && S) requestAnimationFrame(pintarNoche);
+    if (v === 'noche') cargarHistorial();
     window.scrollTo({ top: 0 });
   }
 
@@ -508,6 +524,7 @@
     if (fix && n > 0) d.fix = true;
     pila.push({ u, t, n }); guardarPila();
     publicar(d); pintar();
+    if (!fix && u === yo) toast(`${B.TIPOS[t].ico}  ${n > 0 ? 'Apuntado' : 'Quitado'}: ${B.TIPOS[t].un}`, 'Deshacer', deshacer);
   }
   function deshacer() {
     const ult = pila.pop(); guardarPila();
@@ -530,7 +547,8 @@
     $('fixFilas').innerHTML = Object.keys(B.TIPOS).map((t) => `<div class="fix-fila"><span class="e">${B.TIPOS[t].ico}</span><b>${B.TIPOS[t].plural}</b>
       <button class="menos pulsable" data-fix="${t}:-1" aria-label="Quitar ${B.TIPOS[t].un}">−</button><span class="n num">${S.users[fixU].c[t]}</span><button class="pulsable" data-fix="${t}:1" aria-label="Añadir ${B.TIPOS[t].un}">+</button></div>`).join('') +
       `<div class="foto-acc"><button class="pulsable" data-foto="${fixU}">📷 ${fotos[fixU] ? 'Cambiar foto' : 'Poner foto'}</button>${fotos[fixU] ? `<button class="pulsable" data-quitarfoto="${fixU}">Quitar foto</button>` : ''}</div>` +
-      (pila.length ? `<button class="deshacer pulsable" id="fixDeshacer" style="justify-self:center">↩︎ Deshacer lo último</button>` : '');
+      (pila.length ? `<button class="deshacer pulsable" id="fixDeshacer" style="justify-self:center">↩︎ Deshacer lo último</button>` : '') +
+      htmlRetar(fixU);
     const fd = $('fixDeshacer'); if (fd) fd.onclick = deshacer;
   }
   $('fotoInput').addEventListener('change', async () => {
@@ -857,6 +875,15 @@
         if (!mio && e.k === 'ruleta' && e.cant >= 100 && !e.gana) toast(`💸  ${quien} pierde ${e.cant} en la ruleta`);
       } else if (e.k === 'cero') {
         if (!mio) { flotante('¡CERO!', `${quien} lo ha sacado: toda la mesa bebe`); temblar(); sonar('bronca'); vibrar('fuerte'); }
+      } else if (e.k === 'reto') {
+        const de = B.NOMBRES[e.de] || '', a = B.NOMBRES[e.a] || '';
+        if (e.op === 'lanzar' && e.a === yo) { flotante('🤺 Te retan', `${de}: otra en 10 min por ${e.cant}`); sonar('bronca'); vibrar('fuerte'); notificar('🤺 Te retan', `${de} te reta a beberte otra en 10 minutos por ${e.cant} fichas.`); }
+        else if (e.op === 'lanzar' && !mio) toast(`🤺  ${de} reta a ${a} por ${e.cant} fichas`);
+        else if (e.op === 'aceptar' && e.de === yo) { toast(`🤺  ${a} acepta tu reto. Corre el reloj.`); vibrar('medio'); }
+        else if (e.op === 'gana') {
+          if (e.u === yo) { flotante(`+${e.cant * 2}`, 'reto ganado'); confeti(120, ['🤺', '🪙', '🏆']); sonar('jackpot'); vibrar('fuerte'); }
+          else toast(`🤺  ${B.NOMBRES[e.u]} gana el reto · +${e.cant * 2}`);
+        } else if ((e.op === 'rechazar' || e.op === 'caduca') && e.de === yo) toast(e.op === 'rechazar' ? `🏳️  ${a} se raja. Te devuelven las fichas.` : `⌛  ${a} no ha contestado. Te devuelven las fichas.`);
       } else if (e.k === 'pref') {
         toast(B.principal(e.u) === 'cubata' ? `🥃  A ${B.NOMBRES[e.u]} le cuentan los cubatas` : `🍺  ${B.NOMBRES[e.u]} vuelve a la cerveza`);
       } else if (e.k === 'jugador') {
@@ -906,9 +933,15 @@
     document.body.appendChild(d);
     setTimeout(() => d.remove(), 1800);
   }
-  function toast(t) {
+  function toast(t, accion, fn) {
     const d = document.createElement('div');
     d.className = 'toast glass'; d.textContent = t;
+    if (accion) {
+      d.classList.add('con-accion');
+      const b = document.createElement('button'); b.textContent = accion;
+      b.onclick = (e) => { e.stopPropagation(); d.remove(); fn(); };
+      d.appendChild(b);
+    }
     $('toasts').appendChild(d);
     setTimeout(() => d.remove(), 3700);
   }
@@ -1009,6 +1042,150 @@
     else if (k === 'pierde') [392, 370, 349, 262].forEach((f, i) => nota(f, i * .18, .28, 'sawtooth', .06));
     else if (k === 'bronca') for (let i = 0; i < 4; i++) nota(i % 2 ? 220 : 175, i * .22, .2, 'sawtooth', .12);
   }
+
+  /* ================= Retos entre dos ================= */
+  let retoCant = 25;
+  const mmss = (seg) => { seg = Math.max(0, Math.ceil(seg)); return `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, '0')}`; };
+  function htmlRetar(u) {
+    if (!yo || !S || u === yo || !S.users[u]) return '';
+    const mias = S.users[yo].fichas, suyas = S.users[u].fichas;
+    const ops = [10, 25, 50, 100, 250].filter((x) => x <= Math.min(mias, suyas));
+    const ya = (S.retos || []).some((r) => r.de === yo && r.a === u);
+    if (!ops.includes(retoCant)) retoCant = ops.length ? ops[Math.min(1, ops.length - 1)] : 10;
+    const motivo = ya ? `Ya tienes un reto pendiente con ${B.NOMBRES[u]}.` : !ops.length ? `Hacen falta 10 fichas cada uno (tú ${mias}, ${B.NOMBRES[u]} ${suyas}).` : '';
+    return `<div class="reto-fix"><b>🤺 Retar a ${esc(B.NOMBRES[u])}</b><span class="sub">Si se bebe otra en 10 minutos se lleva las fichas de los dos. Si no, te las llevas tú.</span>
+      ${motivo ? `<span class="sub">${esc(motivo)}</span>` : `<div class="fichas-reto">${ops.map((x) => `<button class="pulsable${x === retoCant ? ' on' : ''}" data-retocant="${x}">${x}</button>`).join('')}</div>
+      <button class="lanzar pulsable" data-retar="${u}">Retar por ${retoCant} fichas</button>`}</div>`;
+  }
+  function pintarRetos() {
+    const el = $('retos');
+    if (!S || !yo) { el.hidden = true; return; }
+    const now = ahora();
+    const tarjetas = (S.retos || []).map((r) => {
+      const de = B.NOMBRES[r.de] || r.de, a = B.NOMBRES[r.a] || r.a;
+      const bebida = B.principal(r.a) === 'cubata' ? 'otra copa' : 'otra';
+      if (!r.hasta) {
+        const queda = mmss(B.RETO_ESPERA - (now - r.t));
+        if (r.a === yo) return `<div class="reto glass activo"><div class="r-top">${av(r.de)}<b>${esc(de)} te reta: bébete ${bebida} en 10 min</b></div>
+          <span class="r-sub">Os jugáis ${r.cant} fichas cada uno · caduca en ${queda}</span>
+          <div class="r-acc"><button class="si pulsable" data-reto="aceptar:${r.rid}">Acepto</button><button class="pulsable" data-reto="rechazar:${r.rid}">Me rajo</button></div></div>`;
+        if (r.de === yo) return `<div class="reto glass"><div class="r-top">${av(r.a)}<b>Esperando a ${esc(a)}…</b></div>
+          <span class="r-sub">Reto por ${r.cant} fichas · caduca en ${queda}</span>
+          <div class="r-acc"><button class="pulsable" data-reto="cancelar:${r.rid}">Retirar el reto</button></div></div>`;
+        return '';
+      }
+      const queda = r.hasta - now;
+      const reloj = queda > 0 ? mmss(queda) : '0:00';
+      if (r.a === yo) return `<div class="reto glass activo"><div class="r-top">${av(r.de)}<div><b>Bebe ${bebida} ya</b><div class="r-sub">o ${esc(de)} se lleva ${r.cant * 2} fichas</div></div><span class="r-reloj num" style="margin-left:auto">${reloj}</span></div></div>`;
+      return `<div class="reto glass"><div class="r-top">${av(r.a)}<div><b>${esc(de)} vs ${esc(a)}</b><div class="r-sub">${r.de === yo ? `${esc(a)} tiene que beber` : 'reto en juego'} · ${r.cant * 2} fichas</div></div><span class="r-reloj num" style="margin-left:auto">${reloj}</span></div></div>`;
+    }).join('');
+    if (el.dataset.h !== tarjetas) { el.innerHTML = tarjetas; el.dataset.h = tarjetas; }
+    el.hidden = !tarjetas;
+  }
+
+  /* ================= Histórico de noches (lo guarda el servidor de casa) ================= */
+  let historial = null, mesSel = null;
+  const claveMes = (t) => { const d = new Date(t * 1000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+  async function cargarHistorial() {
+    try { const r = await fetch(`${API}/api/historial`, { cache: 'no-store' }); if (r.ok) historial = await r.json(); } catch (e) { /* sin servidor */ }
+    pintarHistorial();
+  }
+  function pintarHistorial() {
+    if (!historial) { $('histRank').innerHTML = '<div class="vacio">No se puede conectar con el servidor de casa ahora mismo.</div>'; return; }
+    if (!historial.length) { $('histMeses').innerHTML = ''; $('histRank').innerHTML = '<div class="vacio">Cuando se cierre la primera noche, aquí saldrá quién manda en el mes.</div>'; $('histSub').textContent = ''; return; }
+    const meses = [...new Set(historial.map((n) => claveMes(n.b)))].sort().reverse();
+    if (!meses.includes(mesSel)) mesSel = meses[0];
+    const nombreMes = (k) => new Date(+k.slice(0, 4), +k.slice(5) - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    $('histMeses').innerHTML = meses.map((k) => `<button class="${k === mesSel ? 'on' : ''}" data-mes="${k}">${nombreMes(k)}</button>`).join('');
+    const noches = historial.filter((n) => claveMes(n.b) === mesSel);
+    const acu = {};
+    for (const n of noches) {
+      const filas = n.j || n.top.map((x) => [x[0], x[1]]);
+      for (const f of filas) {
+        const A = acu[f[0]] || (acu[f[0]] = { pts: 0, noches: 0, c: [0, 0, 0, 0, 0], mejor: 0, gan: 0 });
+        A.pts += f[1]; A.noches++; A.mejor = Math.max(A.mejor, f[1]);
+        if (f.length > 3) { for (let i = 0; i < 5; i++) A.c[i] += f[3 + i] || 0; }
+      }
+      const g = filas.slice().sort((x, y) => y[1] - x[1])[0]; if (g && acu[g[0]]) acu[g[0]].gan++;
+    }
+    const orden = Object.keys(acu).sort((x, y) => acu[y].pts - acu[x].pts);
+    $('histT').textContent = mesSel === claveMes(Date.now() / 1000) ? 'Este mes' : nombreMes(mesSel);
+    $('histSub').textContent = `${noches.length} ${noches.length === 1 ? 'noche' : 'noches'} · puntos sumados`;
+    $('histRank').innerHTML = orden.map((u, i) => {
+      const A = acu[u], ic = B.ORDEN.map((t, k) => (A.c[k] ? `${B.TIPOS[t].ico}${A.c[k]}` : '')).filter(Boolean).join(' ');
+      const nom = B.NOMBRES[u] || u;
+      return `<div class="hist-fila"><span class="pos num">${i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</span>${B.USERS.includes(u) ? av(u) : `<span class="av">${esc(nom[0])}</span>`}
+        <div><b>${esc(nom)}</b><div class="det">${A.noches} ${A.noches === 1 ? 'noche' : 'noches'}${A.gan ? ` · ${A.gan} 👑` : ''}${ic ? ` · ${ic}` : ''}</div></div>
+        <div class="cifras num"><b>${B.fmtPts(A.pts)}</b><span>mejor ${B.fmtPts(A.mejor)}</span></div></div>`;
+    }).join('');
+  }
+  $('histMeses').addEventListener('click', (e) => { const b = e.target.closest('[data-mes]'); if (b) { mesSel = b.dataset.mes; pintarHistorial(); vibrar('suave'); } });
+
+  /* ================= Resumen de la noche para compartir (imagen) ================= */
+  async function imagenNoche() {
+    const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d'), now = ahora(), F = '-apple-system,"SF Pro Rounded",system-ui,sans-serif';
+    const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#3a0a1e'); g.addColorStop(.55, '#1a0610'); g.addColorStop(1, '#0d0308'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+    const halo = x.createRadialGradient(W * .8, 120, 20, W * .8, 120, 600); halo.addColorStop(0, 'rgba(255,170,30,.35)'); halo.addColorStop(1, 'rgba(255,170,30,0)'); x.fillStyle = halo; x.fillRect(0, 0, W, H);
+    const txt = (t, X, Y, size, color = '#fffaf2', peso = 800, al = 'left') => { x.font = `${peso} ${size}px ${F}`; x.fillStyle = color; x.textAlign = al; x.fillText(t, X, Y); };
+    const fecha = new Date((S.t0 || now) * 1000).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    txt('CASINO BIRRAS', 80, 120, 34, 'rgba(255,214,120,.9)', 800);
+    txt(fecha.charAt(0).toUpperCase() + fecha.slice(1), 80, 175, 44, '#fffaf2', 700);
+    const pts = B.USERS.reduce((n, u) => n + B.puntos(S.users[u]), 0);
+    txt(String(B.totalGrupo(S)), 80, 380, 200, '#ffcf3a', 900);
+    x.font = `900 200px ${F}`; const anchoN = x.measureText(String(B.totalGrupo(S))).width;
+    txt(B.totalGrupo(S) === 1 ? 'cerveza' : 'cervezas', 100 + anchoN, 300, 46, '#fffaf2', 700);
+    txt(`${B.fmtPts(pts)} puntos en el bote`, 100 + anchoN, 360, 34, 'rgba(255,250,242,.7)', 600);
+    txt(B.ORDEN.map((t) => `${B.TIPOS[t].ico} ${B.totalGrupo(S, t)}`).join('    '), 80, 460, 40, '#fffaf2', 700);
+    // Podio
+    const orden = B.USERS.filter((u) => B.puntos(S.users[u]) > 0).sort((a, b) => B.puntos(S.users[b]) - B.puntos(S.users[a]));
+    const cargarImg = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+    let y = 560;
+    txt('CLASIFICACIÓN', 80, y, 28, 'rgba(255,250,242,.6)', 800); y += 30;
+    for (const [i, u] of orden.slice(0, 5).entries()) {
+      const yy = y + i * 108, U = S.users[u];
+      x.fillStyle = i === 0 ? 'rgba(255,207,58,.16)' : 'rgba(255,255,255,.06)';
+      x.beginPath(); x.roundRect(60, yy, W - 120, 92, 28); x.fill();
+      const img = fotos[u] ? await cargarImg(fotos[u]) : null;
+      x.save(); x.beginPath(); x.arc(130, yy + 46, 32, 0, Math.PI * 2); x.closePath();
+      if (img) { x.clip(); x.drawImage(img, 98, yy + 14, 64, 64); } else { x.fillStyle = '#ff8a1a'; x.fill(); txt(B.NOMBRES[u][0], 130, yy + 60, 34, '#2a1100', 900, 'center'); }
+      x.restore();
+      txt(`${['🥇', '🥈', '🥉'][i] || `${i + 1}.`} ${B.NOMBRES[u]}`, 186, yy + 44, 38, '#fffaf2', 800);
+      txt(B.ORDEN.filter((t) => U.c[t]).map((t) => `${B.TIPOS[t].ico}${U.c[t]}`).join('  '), 186, yy + 78, 26, 'rgba(255,250,242,.7)', 600);
+      txt(B.fmtPts(B.puntos(U)), W - 90, yy + 58, 46, '#ffcf3a', 900, 'right');
+    }
+    // Premios de la noche
+    const jug = B.USERS.filter((u) => Object.values(S.users[u].c).some(Boolean));
+    const seco = jug.filter((u) => S.users[u].ultEv).sort((a, b) => S.users[a].ultCerveza - S.users[b].ultCerveza)[0];
+    const combo = jug.slice().sort((a, b) => S.users[b].maxCombo - S.users[a].maxCombo)[0];
+    const fuma = jug.slice().sort((a, b) => S.users[b].c.cigarro - S.users[a].c.cigarro)[0];
+    const premios = [
+      ['👑 MVP', orden[0] ? B.NOMBRES[orden[0]] : '—'],
+      ['🏜️ Más seco', seco ? B.NOMBRES[seco] : '—'],
+      ['🔥 Mejor combo', combo && S.users[combo].maxCombo > 1 ? `${B.NOMBRES[combo]} x${Math.min(S.users[combo].maxCombo, B.COMBO_MAX)}` : '—'],
+      ['🚬 Más fumador', fuma && S.users[fuma].c.cigarro ? B.NOMBRES[fuma] : '—'],
+    ];
+    const py = H - 250;
+    premios.forEach(([e, v], i) => {
+      const X = 60 + (i % 2) * ((W - 120) / 2 + 10), Y = py + Math.floor(i / 2) * 100, w = (W - 120) / 2 - 10;
+      x.fillStyle = 'rgba(255,255,255,.07)'; x.beginPath(); x.roundRect(X, Y, w, 86, 24); x.fill();
+      txt(e, X + 24, Y + 34, 24, 'rgba(255,250,242,.65)', 700); txt(v, X + 24, Y + 70, 32, '#fffaf2', 800);
+    });
+    txt(S.t0 ? `${hora(S.t0)} – ${hora(now)} · ${S.rondas || 0} ${S.rondas === 1 ? 'ronda' : 'rondas'}` : '', W - 80, 120, 28, 'rgba(255,250,242,.6)', 600, 'right');
+    return new Promise((ok) => c.toBlob(ok, 'image/png'));
+  }
+  $('compartirNoche').onclick = async () => {
+    if (!S || !B.USERS.some((u) => B.puntos(S.users[u]) > 0)) return toast('Todavía no hay nada que presumir.');
+    vibrar('medio'); toast('🖼️  Preparando el resumen…');
+    const blob = await imagenNoche();
+    const file = new File([blob], 'noche-birras.png', { type: 'image/png' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'La noche en Casino Birras' }); return; }
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+    // Sin «compartir» del sistema: se enseña la imagen para guardarla con una pulsación larga
+    $('visorImg').src = URL.createObjectURL(blob); $('visorNom').textContent = 'Mantén pulsada la imagen para guardarla o compartirla';
+    $('capaVisor').classList.add('on', 'resumen');
+  };
 
   /* ================= Arranque ================= */
   /* Puente para los módulos nuevos (diario): lo que necesitan del resto de la app. */
