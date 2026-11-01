@@ -779,3 +779,42 @@ html{-webkit-overflow-scrolling:touch}
 .visor.resumen figcaption{font-size:15px;font-weight:700;color:rgba(255,255,255,.75);text-align:center;padding:0 24px}
 .reto-fix .fichas-reto{justify-content:center}
 .reto-fix{text-align:center}
+
+/* ================= MÁS CASINO: blackjack, crash, carrera, porra ================= */
+.bj-caja,.crash-caja,.carrera-caja,.porra-caja{padding:16px;display:grid;gap:14px}
+.bj-caja{background:radial-gradient(120% 90% at 50% 0%,rgba(20,120,70,.55),rgba(5,50,30,.55))}
+.bj-mano{display:grid;gap:8px}
+.bj-mano .etq b{color:#ffcf3a;margin-left:6px;letter-spacing:0}
+.cartas{display:flex;gap:8px;min-height:96px;flex-wrap:wrap}
+.carta{width:64px;height:92px;border-radius:10px;background:linear-gradient(160deg,#fff,#efe9df);color:#1a0610;display:grid;grid-template-rows:auto 1fr;padding:6px 7px;font-weight:900;box-shadow:0 6px 14px rgba(0,0,0,.4);animation:carta .35s cubic-bezier(.2,1.3,.4,1)}
+.carta .v{font-size:19px;line-height:1}
+.carta .p{font-size:30px;align-self:center;justify-self:center}
+.carta.roja{color:#c8102e}
+.carta.oculta{background:repeating-linear-gradient(45deg,#7a1335 0 8px,#a3104a 8px 16px);border:3px solid #fff}
+.carta.oculta *{visibility:hidden}
+@keyframes carta{from{transform:translateY(-30px) rotate(-8deg);opacity:0}}
+.tapete.cinco{grid-template-columns:repeat(5,1fr)}
+.crash-pantalla{position:relative;border-radius:20px;overflow:hidden;background:linear-gradient(180deg,#14051f,#2a0b2e);aspect-ratio:68/38}
+.crash-pantalla canvas{width:100%;height:100%;display:block}
+.crash-x{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--fr);font-weight:900;font-size:56px;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,.6)}
+.crash-x.boom{color:#ff5a5f;animation:boom .5s}
+.crash-x.cobrado{color:#5ff5a0}
+@keyframes boom{30%{transform:scale(1.25)}}
+#crashBtn.retirar{background:linear-gradient(135deg,#5ff5a0,#0f8a4f);color:#032412}
+.pista{display:grid;gap:6px;padding:10px;border-radius:18px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 24px,transparent 24px 48px),rgba(0,0,0,.25);position:relative}
+.pista::after{content:"";position:absolute;right:30px;top:6px;bottom:6px;width:6px;background:repeating-linear-gradient(0deg,#fff 0 6px,#111 6px 12px);border-radius:2px}
+.carril{position:relative;height:40px;border-bottom:1px dashed rgba(255,255,255,.12)}
+.carril:last-child{border-bottom:0}
+.corredor{position:absolute;left:0;top:2px;font-size:32px;transition:none;will-change:transform}
+.carril.mia{background:rgba(255,207,58,.12);border-radius:10px}
+.porra-gente{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.porra-gente button{display:grid;justify-items:center;gap:4px;padding:12px 4px;border-radius:18px;background:rgba(255,255,255,.1);font-weight:800;font-size:14px}
+.porra-gente button .av{width:46px;height:46px}
+.porra-gente button small{font-weight:600;color:var(--txt2);font-size:11.5px}
+.porra-lista{display:grid;gap:6px}
+.porra-fila{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:14px;background:rgba(255,255,255,.07);font-size:14px}
+.porra-fila .av{width:28px;height:28px;font-size:13px}
+.porra-fila b{margin-left:auto;color:#ffcf3a}
+[data-tema="claro"] .porra-gente button,[data-tema="claro"] .porra-fila{background:rgba(0,0,0,.06)}
+.tapete.cinco .ap-b{grid-column:auto!important;font-size:26px;padding:10px 0}
+.tapete .ap-b.sel{outline:3px solid #ffcf3a;outline-offset:-3px}

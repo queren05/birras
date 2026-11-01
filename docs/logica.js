@@ -70,7 +70,7 @@
         combo: 0, maxCombo: 0, racha: 0, escudo: 0, castigos: 0,
       };
     }
-    return { v: 1, users, extra: {}, bajas: [], sinCerveza: [], happy: 0, rondas: 0, ultRonda: 0, diana: null, feed: [], upto: 0, ids: [], t0: 0, hist: {}, noches: [], retos: [] };
+    return { v: 1, users, extra: {}, bajas: [], sinCerveza: [], happy: 0, rondas: 0, ultRonda: 0, diana: null, feed: [], upto: 0, ids: [], t0: 0, hist: {}, noches: [], retos: [], porras: [] };
   }
 
   const clon = (o) => JSON.parse(JSON.stringify(o));
@@ -90,6 +90,7 @@
     if (!s.noches) s.noches = [];
     if (!s.feed) s.feed = [];
     if (!Array.isArray(s.retos)) s.retos = [];
+    if (!Array.isArray(s.porras)) s.porras = [];
     s.ids = (s.ids || []).map((x) => (Array.isArray(x) ? x : [x, s.upto]));
     return s;
   }
@@ -117,6 +118,45 @@
   /* Retos entre dos: «te reto a que te bebes otra en 10 minutos». Los dos ponen las mismas
    * fichas; si el retado bebe a tiempo se lo lleva todo, si no, el que retó. */
   const RETO_PLAZO = 10 * 60, RETO_ESPERA = 10 * 60;
+
+  /* Blackjack: cartas 0-51 (palo = c/13, valor = c%13: 0 as, 1-8 del 2 al 9, 9-12 diez y figuras).
+   * El móvil reparte y juega la mano; aquí se comprueba que la mano y la casa son válidas y se paga. */
+  const valorCarta = (c) => { const r = c % 13; return r === 0 ? 11 : r >= 9 ? 10 : r + 1; };
+  function totalBJ(cs) {
+    let t = 0, ases = 0;
+    for (const c of cs) { t += valorCarta(c); if (c % 13 === 0) ases++; }
+    while (t > 21 && ases) { t -= 10; ases--; }
+    return t;
+  }
+  /* Resultado de una mano ya jugada; null si no es válida. La casa pide hasta 17. */
+  function resultadoBJ(j, c, doble) {
+    const ok = (x) => Array.isArray(x) && x.every((n) => Number.isInteger(n) && n >= 0 && n < 52);
+    if (!ok(j) || !ok(c) || j.length < 2 || c.length < 2 || j.length > 11 || c.length > 11) return null;
+    if (new Set([...j, ...c]).size !== j.length + c.length) return null;
+    if (doble && j.length !== 3) return null;
+    const tj = totalBJ(j);
+    for (let k = 2; k < j.length; k++) if (totalBJ(j.slice(0, k)) >= 21) return null;   // no se pide con 21 o pasado
+    const natural = j.length === 2 && tj === 21 && !doble;
+    if (tj > 21 || natural) { if (c.length !== 2) return null; }
+    else {
+      for (let k = 2; k < c.length; k++) if (totalBJ(c.slice(0, k)) >= 17) return null;
+      if (totalBJ(c) < 17) return null;
+    }
+    const tc = totalBJ(c), casaNatural = c.length === 2 && tc === 21;
+    let res;
+    if (tj > 21) res = 'pasa';
+    else if (natural) res = casaNatural ? 'empate' : 'blackjack';
+    else if (casaNatural && c.length === 2) res = 'pierde';
+    else if (tc > 21 || tj > tc) res = 'gana';
+    else res = tj === tc ? 'empate' : 'pierde';
+    return { res, tj, tc };
+  }
+  /* Crash: el multiplicador sube hasta x (punto de explosión); r = donde te retiraste (0 = no llegaste). */
+  const crashValido = (x) => typeof x === 'number' && x >= 1 && x <= 1000 && Math.abs(Math.round(x * 100) - x * 100) < 1e-6;
+  const CABALLOS = ['🍺', '🥃', '🥂', '🍹', '🍷'];
+  const CARRERA_PAGA = 4;   // ganancia neta por ficha (5 corredores)
+  const PORRA_PAGA = 3;     // «¿quién bebe la siguiente?»: ganancia neta por ficha
+  const PORRA_CADUCA = 2 * 3600;
   /* Cantidad válida para apostar (entera, mínimo 5, sin pasar de lo que tienes) o 0 si no vale */
   function apostable(U, cant) {
     return Number.isInteger(cant) && cant >= APUESTA_MIN && cant <= U.fichas ? cant : 0;
@@ -238,6 +278,13 @@
   /* Retos caducados: el que no se aceptó a tiempo devuelve las fichas; el aceptado y no
    * cumplido se lo lleva el que retó. Se resuelve con la hora de cualquier mensaje posterior. */
   function vencerRetos(s, t, ef) {
+    if (s.porras && s.porras.length) {
+      s.porras = s.porras.filter((p) => {
+        if (t - p.t <= PORRA_CADUCA) return true;
+        if (s.users[p.u]) s.users[p.u].fichas += p.cant;
+        return false;
+      });
+    }
     if (!s.retos || !s.retos.length) return;
     s.retos = s.retos.filter((r) => {
       const De = s.users[r.de], A = s.users[r.a];
@@ -315,6 +362,15 @@
       U.fichas += ganadas;
       apilar(U, d.t, ganadas);
       ef.push({ k: 'bebida', u, t: d.t, fichas: ganadas });
+      if (T.bebida && s.porras.length) {
+        const ganan = s.porras.filter((p) => p.a === u);
+        for (const p of ganan) if (s.users[p.u]) s.users[p.u].fichas += p.cant * (PORRA_PAGA + 1);
+        if (ganan.length) feed(s, t, u, '🔮', `Porra: ${ganan.map((p) => `${NOMBRES[p.u]} +${p.cant * PORRA_PAGA}`).join(', ')}`);
+        const pierden = s.porras.filter((p) => p.a !== u);
+        if (pierden.length) feed(s, t, u, '🔮', `Porra perdida: ${[...new Set(pierden.map((p) => NOMBRES[p.u]))].join(', ')}`);
+        ef.push({ k: 'porra', op: 'resuelve', u, ganan: ganan.map((p) => ({ u: p.u, fichas: p.cant * PORRA_PAGA })), pierden: pierden.map((p) => ({ u: p.u, fichas: p.cant })) });
+        s.porras = [];
+      }
       if (T.bebida) {
         s.retos = s.retos.filter((r) => {
           if (r.a !== u || !r.hasta || t > r.hasta) return true;
@@ -402,6 +458,55 @@
       if (p.castigo) U.castigos++;
       ef.push({ k: 'rasca', u, r: d.r, p });
       feed(s, t, u, '🎟️', `${NOMBRES[u]} · rasca y gana: ${p.txt}`);
+      return ef;
+    }
+
+    /* ---------- Blackjack ---------- */
+    if (d.k === 'bj') {
+      const cant = apostable(U, d.cant);
+      if (!cant || (d.doble && cant * 2 > U.fichas)) return ef;
+      const r = resultadoBJ(d.j, d.c, !!d.doble);
+      if (!r) return ef;
+      const m = d.doble ? 2 : 1;
+      const neto = r.res === 'blackjack' ? Math.floor(cant * 1.5) : r.res === 'gana' ? cant * m : r.res === 'empate' ? 0 : -cant * m;
+      U.fichas += neto;
+      ef.push({ k: 'bj', u, neto, cant, res: r.res, tj: r.tj, tc: r.tc });
+      const txt = { blackjack: '¡BLACKJACK!', gana: 'gana', empate: 'empata', pierde: 'pierde', pasa: 'se pasa' }[r.res];
+      feed(s, t, u, '🃏', `${NOMBRES[u]} · blackjack ${r.tj} contra ${r.tc}: ${txt}${neto ? ` ${neto > 0 ? '+' : '−'}${Math.abs(neto)}` : ''}`);
+      return ef;
+    }
+
+    /* ---------- Crash ---------- */
+    if (d.k === 'crash' && crashValido(d.x) && (d.r === 0 || (crashValido(d.r) && d.r > 1))) {
+      const cant = apostable(U, d.cant);
+      if (!cant) return ef;
+      const gana = d.r > 0 && d.r <= d.x;
+      const neto = gana ? Math.floor(cant * (Math.round(d.r * 100) - 100) / 100) : -cant;
+      U.fichas += neto;
+      ef.push({ k: 'crash', u, neto, cant, x: d.x, r: d.r, gana });
+      feed(s, t, u, '🚀', gana ? `${NOMBRES[u]} se retira en x${d.r.toFixed(2)} (explotó en x${d.x.toFixed(2)}) · +${neto}` : `${NOMBRES[u]} explota en x${d.x.toFixed(2)} · −${cant}`);
+      return ef;
+    }
+
+    /* ---------- Carrera de bebidas ---------- */
+    if (d.k === 'carrera' && [d.ap, d.r].every((x) => Number.isInteger(x) && x >= 0 && x < CABALLOS.length)) {
+      const cant = apostable(U, d.cant);
+      if (!cant) return ef;
+      const gana = d.ap === d.r, neto = gana ? cant * CARRERA_PAGA : -cant;
+      U.fichas += neto;
+      ef.push({ k: 'carrera', u, neto, cant, gana, ap: d.ap, r: d.r });
+      feed(s, t, u, '🏁', `${NOMBRES[u]} · carrera: gana ${CABALLOS[d.r]}${gana ? ` ¡acierta! +${neto}` : `, iba con ${CABALLOS[d.ap]} −${cant}`}`);
+      return ef;
+    }
+
+    /* ---------- Porra: ¿quién bebe la siguiente? ---------- */
+    if (d.k === 'porra' && USERS.includes(d.a) && d.a !== u) {
+      const cant = apostable(U, d.cant);
+      if (!cant) return ef;
+      U.fichas -= cant;
+      s.porras.push({ u, a: d.a, cant, t });
+      feed(s, t, u, '🔮', `${NOMBRES[u]} apuesta ${cant} a que ${NOMBRES[d.a]} bebe la siguiente`);
+      ef.push({ k: 'porra', op: 'apuesta', u, a: d.a, cant });
       return ef;
     }
 
@@ -494,7 +599,8 @@
         Object.assign(X, { hc: [], gan: {}, baseCerveza: 0, ultCerveza: t, ultEv: 0, primera: 0, ultBebida: 0, ultCigarro: 0, combo: 0, maxCombo: 0, castigos: 0, racha: 0, escudo: 0 });
       }
       for (const r of s.retos) { if (s.users[r.de]) s.users[r.de].fichas += r.cant; if (r.hasta && s.users[r.a]) s.users[r.a].fichas += r.cant; }
-      Object.assign(s, { hist: {}, rondas: 0, ultRonda: 0, happy: 0, diana: null, t0: 0, feed: [], retos: [] });
+      for (const p of s.porras) if (s.users[p.u]) s.users[p.u].fichas += p.cant;
+      Object.assign(s, { hist: {}, rondas: 0, ultRonda: 0, happy: 0, diana: null, t0: 0, feed: [], retos: [], porras: [] });
       feed(s, t, u, '🌅', `${NOMBRES[u]} cierra la noche. Bote a cero.`);
       ef.push({ k: 'noche', u });
       return ef;
@@ -597,7 +703,7 @@
   return {
     TOPIC, TOPIC_AVISOS, NTFY, USERS, NOMBRES, TIPOS, TIENDA, SIMBOLOS, SLOT_COSTE,
     COMBO_VENTANA, COMBO_MAX, HORA_SECA,
-    ADMIN, idDe, principal, RETO_PLAZO, RETO_ESPERA, vencerRetos, colorRuleta, APUESTAS_RULETA, APUESTAS_DADOS, APUESTA_MIN, SIMBOLOS_RASCA, RASCA_COSTE, PREMIOS_RASCA, premioRasca, tirarRasca, estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
+    ADMIN, idDe, principal, RETO_PLAZO, RETO_ESPERA, vencerRetos, valorCarta, totalBJ, resultadoBJ, crashValido, CABALLOS, CARRERA_PAGA, PORRA_PAGA, colorRuleta, APUESTAS_RULETA, APUESTAS_DADOS, APUESTA_MIN, SIMBOLOS_RASCA, RASCA_COSTE, PREMIOS_RASCA, premioRasca, tirarRasca, estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
     secos, insulto, horasTexto, clon,
   };
 });

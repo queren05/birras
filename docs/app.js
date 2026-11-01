@@ -314,6 +314,7 @@
     pintarTienda(U);
     pintarCola();
     pintarApuesta();
+    pintarPorra();
     if ($('capaPerfil').classList.contains('on')) pintarPerfil();
   }
 
@@ -724,7 +725,8 @@
   }
 
   /* ================= Casino: ruleta, dados y rasca y gana ================= */
-  let juego = ['slot', 'ruleta', 'dados', 'rasca'].includes(leer('birras-juego')) ? leer('birras-juego') : 'slot';
+  const JUEGOS = ['slot', 'ruleta', 'dados', 'rasca', 'bj', 'crash', 'carrera', 'porra'];
+  let juego = JUEGOS.includes(leer('birras-juego')) ? leer('birras-juego') : 'slot';
   let cantAp = +(leer('birras-apuesta') || 10);
   let apRuleta = null, jugando = false;
   function irJuego(j) {
@@ -732,7 +734,11 @@
     document.querySelectorAll('.juego-b').forEach((b) => b.classList.toggle('on', b.dataset.juego === j));
     document.querySelectorAll('.panel-juego').forEach((p) => { p.hidden = p.dataset.panel !== j; });
     $('apuesta').hidden = j === 'slot' || j === 'rasca';
+    if (j === 'bj') pintarBJ();
     if (j === 'ruleta') dibujarRuleta();
+    if (j === 'carrera') pintarPista(null);
+    if (j === 'crash') dibujarCrash(1, false);
+    if (j === 'porra') pintarPorra();
   }
   document.querySelector('.juegos').addEventListener('click', (e) => { const b = e.target.closest('[data-juego]'); if (b) { irJuego(b.dataset.juego); vibrar('suave'); } });
   function pintarApuesta() {
@@ -863,6 +869,173 @@
   }
   $('rascaCarton').addEventListener('click', (e) => { const b = e.target.closest('[data-casilla]'); if (b) rascar(+b.dataset.casilla); });
   $('rascarTodo').onclick = () => { for (let k = 0; k < 6; k++) setTimeout(() => rascar(k), k * 140); };
+
+  /* --- Blackjack --- */
+  const PALOS = ['♠', '♥', '♦', '♣'], VALORES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+  let bj = null;   // {mazo, j, c, cant, doble, fin}
+  const cartaHtml = (c, oculta) => `<div class="carta${c >= 13 && c < 39 ? ' roja' : ''}${oculta ? ' oculta' : ''}"><span class="v">${VALORES[c % 13]}</span><span class="p">${PALOS[Math.floor(c / 13)]}</span></div>`;
+  function barajar() { const m = Array.from({ length: 52 }, (_, i) => i); for (let i = 51; i > 0; i--) { const k = azar(i + 1); [m[i], m[k]] = [m[k], m[i]]; } return m; }
+  function pintarBJ() {
+    if (!bj) { $('bjCasa').innerHTML = ''; $('bjYo').innerHTML = ''; $('bjTc').textContent = ''; $('bjTj').textContent = ''; return; }
+    $('bjYo').innerHTML = bj.j.map((c) => cartaHtml(c)).join('');
+    $('bjCasa').innerHTML = bj.c.map((c, i) => cartaHtml(c, i === 1 && !bj.fin)).join('');
+    $('bjTj').textContent = B.totalBJ(bj.j);
+    $('bjTc').textContent = bj.fin ? B.totalBJ(bj.c) : B.valorCarta(bj.c[0]);
+    $('bjJugar').hidden = bj.fin; $('bjRepartir').hidden = !bj.fin;
+    $('bjDoblar').disabled = bj.j.length !== 2 || !S || S.users[yo].fichas < bj.cant * 2;
+  }
+  function finBJ() {
+    const tj = B.totalBJ(bj.j), natural = bj.j.length === 2 && tj === 21 && !bj.doble;
+    if (tj <= 21 && !natural) while (B.totalBJ(bj.c) < 17) bj.c.push(bj.mazo.pop());
+    bj.fin = true;
+    publicar({ k: 'bj', u: yo, cant: bj.cant, j: bj.j, c: bj.c, doble: bj.doble });
+    const r = B.resultadoBJ(bj.j, bj.c, bj.doble), m = bj.doble ? 2 : 1;
+    pintarBJ();
+    const txt = { blackjack: `¡BLACKJACK! +${Math.floor(bj.cant * 1.5)}`, gana: `¡Ganas ${bj.cant * m}!`, empate: 'Empate: recuperas lo tuyo', pierde: `La casa gana. −${bj.cant * m}`, pasa: `Te pasas. −${bj.cant * m}` }[r.res];
+    $('bjRes').textContent = `${B.totalBJ(bj.j)} contra ${B.totalBJ(bj.c)} · ${txt}`;
+    if (r.res === 'blackjack') { flotante('🃏 BLACKJACK', `+${Math.floor(bj.cant * 1.5)}`); confeti(160, ['🃏', '🪙', '💰']); sonar('jackpot'); vibrar('fuerte'); }
+    else if (r.res === 'gana') { flotante(`+${bj.cant * m}`, 'gana la mano'); confeti(60, ['🪙', '🃏']); sonar('combo'); vibrar('medio'); }
+    else if (r.res === 'empate') sonar('compra');
+    else { sonar('pierde'); vibrar('medio'); }
+  }
+  $('bjRepartir').onclick = () => {
+    if (!puedeApostar()) return;
+    const mazo = barajar();
+    bj = { mazo, j: [mazo.pop(), mazo.pop()], c: [], cant: cantAp, doble: false, fin: false };
+    bj.c = [mazo.pop(), mazo.pop()];
+    sonar('compra'); vibrar('suave');
+    $('bjRes').textContent = `Apuestas ${bj.cant}. ¿Pides o te plantas?`;
+    pintarBJ();
+    const natural = (x) => x.length === 2 && B.totalBJ(x) === 21;
+    if (natural(bj.j) || natural(bj.c)) setTimeout(finBJ, 600);
+  };
+  $('bjPedir').onclick = () => {
+    if (!bj || bj.fin) return;
+    bj.j.push(bj.mazo.pop()); vibrar('suave'); sonar('moneda'); pintarBJ();
+    if (B.totalBJ(bj.j) >= 21) setTimeout(finBJ, 450);
+  };
+  $('bjPlantarse').onclick = () => { if (bj && !bj.fin) finBJ(); };
+  $('bjDoblar').onclick = () => {
+    if (!bj || bj.fin || bj.j.length !== 2 || S.users[yo].fichas < bj.cant * 2) return;
+    bj.doble = true; bj.j.push(bj.mazo.pop()); vibrar('medio'); sonar('moneda'); pintarBJ();
+    setTimeout(finBJ, 500);
+  };
+
+  /* --- Crash --- */
+  let vuelo = null;   // {x, cant, t0, fin}
+  const ritmoCrash = (seg) => Math.exp(seg * 0.14);
+  function dibujarCrash(m, boom) {
+    const c = $('crashLienzo'), x = c.getContext('2d'), W = c.width, H = c.height;
+    x.clearRect(0, 0, W, H);
+    x.strokeStyle = 'rgba(255,255,255,.07)'; x.lineWidth = 1;
+    for (let i = 1; i < 5; i++) { x.beginPath(); x.moveTo(0, H * i / 5); x.lineTo(W, H * i / 5); x.stroke(); }
+    const seg = Math.log(Math.max(1, m)) / 0.14, maxSeg = Math.max(6, seg * 1.15), maxM = Math.max(2, m * 1.2);
+    const px = (s2) => 20 + (W - 40) * s2 / maxSeg, py = (mm) => H - 20 - (H - 40) * (mm - 1) / (maxM - 1);
+    x.beginPath(); x.moveTo(px(0), py(1));
+    for (let s2 = 0; s2 <= seg; s2 += seg / 60 || 1) x.lineTo(px(s2), py(ritmoCrash(s2)));
+    x.lineTo(px(seg), py(m));
+    const g = x.createLinearGradient(0, H, W, 0); g.addColorStop(0, '#ffb21a'); g.addColorStop(1, boom ? '#ff3b47' : '#ff3d81');
+    x.strokeStyle = g; x.lineWidth = 6; x.lineCap = 'round'; x.stroke();
+    x.font = '40px serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(boom ? '💥' : '🚀', px(seg), py(m) - 4);
+  }
+  function terminarVuelo(retiro) {
+    if (!vuelo || vuelo.fin) return;
+    vuelo.fin = true;
+    const v = vuelo;
+    publicar({ k: 'crash', u: yo, cant: v.cant, x: v.x, r: retiro });
+    $('crashBtn').classList.remove('retirar'); $('crashBtn').textContent = '🚀 Despegar';
+    if (retiro) {
+      const g = Math.floor(v.cant * (Math.round(retiro * 100) - 100) / 100);
+      $('crashX').className = 'crash-x num cobrado'; $('crashX').textContent = `x${retiro.toFixed(2)}`;
+      $('crashRes').textContent = `Te retiras en x${retiro.toFixed(2)} · +${g}. Iba a explotar en x${v.x.toFixed(2)}.`;
+      flotante(`+${g}`, `x${retiro.toFixed(2)}`); confeti(retiro >= 3 ? 140 : 50, ['🚀', '🪙']); sonar(retiro >= 3 ? 'jackpot' : 'combo'); vibrar('fuerte');
+    } else {
+      $('crashX').className = 'crash-x num boom'; $('crashX').textContent = `💥 x${v.x.toFixed(2)}`;
+      dibujarCrash(v.x, true);
+      $('crashRes').textContent = `Explota en x${v.x.toFixed(2)}. Pierdes ${v.cant}.`;
+      sonar('pierde'); vibrar('fuerte'); temblar();
+    }
+  }
+  function volar() {
+    if (!vuelo || vuelo.fin) return;
+    const m = Math.floor(ritmoCrash((performance.now() - vuelo.t0) / 1000) * 100) / 100;
+    if (m >= vuelo.x) { terminarVuelo(0); return; }
+    $('crashX').textContent = `x${m.toFixed(2)}`;
+    $('crashBtn').textContent = `💰 Retirarse · ${Math.floor(vuelo.cant * m)}`;
+    vuelo.m = m;
+    dibujarCrash(m, false);
+    requestAnimationFrame(volar);
+  }
+  $('crashBtn').onclick = () => {
+    if (vuelo && !vuelo.fin) { if (vuelo.m > 1) terminarVuelo(vuelo.m); return; }
+    if (!puedeApostar()) return;
+    const U = (azar(1e6) + 1) / (1e6 + 1);
+    const x = Math.min(1000, Math.max(1, Math.floor(97 / (1 - U)) / 100));   // 3 % para la casa
+    vuelo = { x, cant: cantAp, t0: performance.now(), fin: false, m: 1 };
+    $('crashX').className = 'crash-x num'; $('crashRes').textContent = `Apuestas ${cantAp}. Retírate antes de que explote.`;
+    $('crashBtn').classList.add('retirar');
+    sonar('palanca'); vibrar('medio');
+    requestAnimationFrame(volar);
+  };
+  // Si sales de la app en pleno vuelo, cuenta como explotado (nada de trampas)
+  document.addEventListener('visibilitychange', () => { if (document.hidden && vuelo && !vuelo.fin) terminarVuelo(0); });
+
+  /* --- Carrera de bebidas --- */
+  let apCarrera = null, corriendo = false;
+  function pintarPista(pos) {
+    $('pista').innerHTML = B.CABALLOS.map((e, i) => `<div class="carril${apCarrera === i ? ' mia' : ''}"><span class="corredor" id="cab${i}" style="transform:translateX(${pos ? pos[i] : 0}px)">${e}</span></div>`).join('');
+    $('carreraAp').innerHTML = B.CABALLOS.map((e, i) => `<button class="ap-b${apCarrera === i ? ' sel' : ''}" data-cab="${i}" aria-label="Apostar por ${e}">${e}</button>`).join('');
+  }
+  $('carreraAp').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-cab]'); if (!b || corriendo) return;
+    apCarrera = +b.dataset.cab; pintarPista(null); vibrar('suave');
+    $('carreraRes').textContent = `Vas con ${B.CABALLOS[apCarrera]} por ${cantAp} fichas. Si gana, ${cantAp * (B.CARRERA_PAGA + 1)}.`;
+  });
+  $('carreraBtn').onclick = () => {
+    if (corriendo) return;
+    if (apCarrera === null) return toast('Elige primero tu bebida.');
+    if (!puedeApostar()) return;
+    const r = azar(B.CABALLOS.length), ap = apCarrera, cant = cantAp;
+    publicar({ k: 'carrera', u: yo, cant, ap, r });
+    corriendo = true; sonar('palanca'); vibrar('medio');
+    $('carreraRes').textContent = '¡Y salen!';
+    const ancho = $('pista').clientWidth - 76;
+    const tiempos = B.CABALLOS.map((_, i) => (i === r ? 3.6 : 3.9 + azar(1000) / 1000 * 1.4));
+    const ritmo = B.CABALLOS.map(() => [azar(1000) / 1000 * 6, 0.5 + azar(1000) / 1000]);
+    const t0 = performance.now();
+    const paso2 = () => {
+      const t = (performance.now() - t0) / 1000;
+      B.CABALLOS.forEach((_, i) => {
+        const base = Math.min(1, t / tiempos[i]);
+        const p = Math.min(1, base + Math.sin(t * 3 * ritmo[i][1] + ritmo[i][0]) * 0.035 * (1 - base));
+        const el = $('cab' + i); if (el) el.style.transform = `translateX(${Math.max(0, p) * ancho}px)`;
+      });
+      if (t < tiempos[r] + 0.25) { requestAnimationFrame(paso2); return; }
+      corriendo = false;
+      const gana = ap === r;
+      $('carreraRes').textContent = `¡Gana ${B.CABALLOS[r]}! ${gana ? `Cobras ${cant * (B.CARRERA_PAGA + 1)} (+${cant * B.CARRERA_PAGA}).` : `Pierdes ${cant}.`}`;
+      if (gana) { flotante(`+${cant * B.CARRERA_PAGA}`, `${B.CABALLOS[r]} gana`); confeti(120, [B.CABALLOS[r], '🏁', '🪙']); sonar('jackpot'); vibrar('fuerte'); }
+      else { sonar('pierde'); vibrar('medio'); }
+    };
+    requestAnimationFrame(paso2);
+  };
+
+  /* --- Porra: ¿quién bebe la siguiente? --- */
+  function pintarPorra() {
+    if (!S || $('porraGente') == null) return;
+    const html = B.USERS.filter((u) => u !== yo).map((u) => `<button class="pulsable" data-porra="${u}">${av(u)}${esc(B.NOMBRES[u])}<small>${S.users[u].c[B.principal(u)] ? `lleva ${S.users[u].c.cerveza + S.users[u].c.cubata + S.users[u].c.chupito}` : 'sin estrenar'}</small></button>`).join('');
+    if ($('porraGente').dataset.h !== html) { $('porraGente').innerHTML = html; $('porraGente').dataset.h = html; }
+    const ps = S.porras || [];
+    $('porraLista').innerHTML = ps.length ? ps.map((p) => `<div class="porra-fila">${av(p.u)}<span>${esc(B.NOMBRES[p.u])} → ${esc(B.NOMBRES[p.a] || p.a)}</span><b>${p.cant}</b></div>`).join('')
+      : '<p class="sub" style="text-align:center;font-size:13.5px">Nadie ha apostado todavía.</p>';
+  }
+  $('porraGente').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-porra]'); if (!b || !puedeApostar()) return;
+    const a = b.dataset.porra;
+    publicar({ k: 'porra', u: yo, a, cant: cantAp });
+    toast(`🔮  ${cantAp} fichas a que ${B.NOMBRES[a]} bebe la siguiente`); sonar('compra'); vibrar('medio');
+  });
+
   irJuego(juego);
 
   /* ================= Animaciones ================= */
@@ -875,6 +1048,17 @@
         if (!mio && e.k === 'ruleta' && e.cant >= 100 && !e.gana) toast(`💸  ${quien} pierde ${e.cant} en la ruleta`);
       } else if (e.k === 'cero') {
         if (!mio) { flotante('¡CERO!', `${quien} lo ha sacado: toda la mesa bebe`); temblar(); sonar('bronca'); vibrar('fuerte'); }
+      } else if (e.k === 'bj' || e.k === 'crash' || e.k === 'carrera') {
+        if (!mio && e.neto >= 100) toast(`${{ bj: '🃏', crash: '🚀', carrera: '🏁' }[e.k]}  ${quien} gana ${e.neto} fichas`);
+        if (!mio && e.k === 'bj' && e.res === 'blackjack') toast(`🃏  ¡${quien} saca BLACKJACK!`);
+      } else if (e.k === 'porra') {
+        if (e.op === 'apuesta' && !mio) toast(`🔮  ${quien} apuesta ${e.cant} a que ${B.NOMBRES[e.a]} bebe la siguiente`);
+        if (e.op === 'resuelve') {
+          const g = (e.ganan || []).find((x) => x.u === yo), p = (e.pierden || []).find((x) => x.u === yo);
+          if (g) { flotante(`+${g.fichas}`, 'porra acertada'); confeti(100, ['🔮', '🪙']); sonar('jackpot'); vibrar('fuerte'); }
+          else if (p) toast(`🔮  Porra perdida: ha bebido ${quien}. −${p.fichas}`);
+          else if ((e.ganan || []).length) toast(`🔮  ${e.ganan.map((x) => B.NOMBRES[x.u]).join(', ')} acierta la porra`);
+        }
       } else if (e.k === 'reto') {
         const de = B.NOMBRES[e.de] || '', a = B.NOMBRES[e.a] || '';
         if (e.op === 'lanzar' && e.a === yo) { flotante('🤺 Te retan', `${de}: otra en 10 min por ${e.cant}`); sonar('bronca'); vibrar('fuerte'); notificar('🤺 Te retan', `${de} te reta a beberte otra en 10 minutos por ${e.cant} fichas.`); }

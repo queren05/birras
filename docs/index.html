@@ -108,6 +108,10 @@
       <button class="juego-b" data-juego="ruleta">🎡<span>Ruleta</span></button>
       <button class="juego-b" data-juego="dados">🎲<span>Dados</span></button>
       <button class="juego-b" data-juego="rasca">🎟️<span>Rasca</span></button>
+      <button class="juego-b" data-juego="bj">🃏<span>Blackjack</span></button>
+      <button class="juego-b" data-juego="crash">🚀<span>Crash</span></button>
+      <button class="juego-b" data-juego="carrera">🏁<span>Carrera</span></button>
+      <button class="juego-b" data-juego="porra">🔮<span>Porra</span></button>
     </div>
     <div class="apuesta glass" id="apuesta">
       <span class="etq">Apuesta</span>
@@ -149,6 +153,46 @@
         <div class="premios"><span>💎💎💎 +300</span><span>🌿🌿🌿 +100</span><span>🥃🥃🥃 +80</span><span>🍺🍺🍺 +60</span><span>🍋🍋🍋 +30</span><span>💀💀💀 chupito</span></div>
         <button class="palanca pulsable" id="comprarRasca">Comprar un rasca · 15 fichas</button>
         <button class="txt-btn" id="rascarTodo" hidden style="justify-self:center">Rascar todo</button>
+      </div>
+    </div>
+
+    <div class="panel-juego" data-panel="bj" hidden>
+      <div class="bj-caja glass">
+        <div class="bj-mano"><div class="etq">La casa <b class="num" id="bjTc"></b></div><div class="cartas" id="bjCasa"></div></div>
+        <div class="bj-mano"><div class="etq">Tú <b class="num" id="bjTj"></b></div><div class="cartas" id="bjYo"></div></div>
+        <div class="resultado" id="bjRes" aria-live="polite">Blackjack paga 3 a 2. La casa se planta en 17.</div>
+        <button class="palanca pulsable" id="bjRepartir">Repartir</button>
+        <div class="tapete tres" id="bjJugar" hidden>
+          <button class="ap-b" id="bjPedir">Pedir<small>otra carta</small></button>
+          <button class="ap-b dorado" id="bjPlantarse">Plantarse<small>juega la casa</small></button>
+          <button class="ap-b" id="bjDoblar">Doblar<small>×2 y una carta</small></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-juego" data-panel="crash" hidden>
+      <div class="crash-caja glass">
+        <div class="crash-pantalla"><canvas id="crashLienzo" width="680" height="380"></canvas><div class="crash-x num" id="crashX">x1.00</div></div>
+        <div class="resultado" id="crashRes" aria-live="polite">El multiplicador sube hasta que explota. Retírate antes.</div>
+        <button class="palanca pulsable" id="crashBtn">🚀 Despegar</button>
+      </div>
+    </div>
+
+    <div class="panel-juego" data-panel="carrera" hidden>
+      <div class="carrera-caja glass">
+        <div class="pista" id="pista"></div>
+        <div class="resultado" id="carreraRes" aria-live="polite">Elige tu bebida. Si gana, cobras 5 veces lo apostado.</div>
+        <div class="tapete cinco" id="carreraAp"></div>
+        <button class="palanca pulsable" id="carreraBtn">🏁 ¡Salida!</button>
+      </div>
+    </div>
+
+    <div class="panel-juego" data-panel="porra" hidden>
+      <div class="porra-caja glass">
+        <div class="resultado">¿Quién se bebe la siguiente?</div>
+        <p class="sub" style="text-align:center;font-size:14px">Apuesta por alguien. Si su próxima bebida es la siguiente de la mesa, cobras 4 veces lo apostado. Si bebe otro, lo pierdes.</p>
+        <div class="porra-gente" id="porraGente"></div>
+        <div class="porra-lista" id="porraLista"></div>
       </div>
     </div>
 
