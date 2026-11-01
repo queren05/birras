@@ -2,15 +2,128 @@ import SwiftUI
 
 struct VistaBote: View {
     @EnvironmentObject var mesa: Mesa
+    @AppStorage("modulos") private var orden = Modulo.porDefecto
+    @AppStorage("ocultos") private var ocultos = ""
     var body: some View {
         Pantalla {
             Retos()
-            TarjetaBote()
-            if let muro = mesa.vista?.muro { Muro(texto: muro) }
-            Botonera()
-            Marcador()
-            MiFicha()
-            UltimasJugadas(cuantas: 4, titulo: "Lo último")
+            Castigos()
+            ForEach(Modulo.lista(orden).filter { !Modulo.ocultos(ocultos).contains($0) }) { m in m.vista }
+        }
+    }
+}
+
+/// Bloques de la pantalla principal: cada uno los ordena y oculta a su gusto (Perfil → Personalizar).
+enum Modulo: String, CaseIterable, Identifiable {
+    case bote, muro, botones, marcador, mificha, ultimo
+    var id: String { rawValue }
+    static let porDefecto = "bote,muro,botones,marcador,mificha,ultimo"
+    static func lista(_ s: String) -> [Modulo] {
+        var l: [Modulo] = []
+        for x in s.split(separator: ",") { if let m = Modulo(rawValue: String(x)), !l.contains(m) { l.append(m) } }
+        for m in allCases where !l.contains(m) { l.append(m) }
+        return l
+    }
+    static func ocultos(_ s: String) -> Set<Modulo> { Set(s.split(separator: ",").compactMap { Modulo(rawValue: String($0)) }) }
+    var nombre: String {
+        switch self {
+        case .bote: return "El bote"
+        case .muro: return "Muro de la vergüenza"
+        case .botones: return "Botones para apuntar"
+        case .marcador: return "Marcador"
+        case .mificha: return "Mis fichas y mi reloj"
+        case .ultimo: return "Lo último"
+        }
+    }
+    var icono: String {
+        switch self {
+        case .bote: return "trophy.fill"
+        case .muro: return "exclamationmark.bubble.fill"
+        case .botones: return "plus.circle.fill"
+        case .marcador: return "list.number"
+        case .mificha: return "timer"
+        case .ultimo: return "clock.arrow.circlepath"
+        }
+    }
+    @ViewBuilder var vista: some View {
+        switch self {
+        case .bote: TarjetaBote()
+        case .muro: MuroSiHay()
+        case .botones: Botonera()
+        case .marcador: Marcador()
+        case .mificha: MiFicha()
+        case .ultimo: UltimasJugadas(cuantas: 4, titulo: "Lo último")
+        }
+    }
+}
+
+struct MuroSiHay: View {
+    @EnvironmentObject var mesa: Mesa
+    var body: some View { if let muro = mesa.vista?.muro { Muro(texto: muro) } }
+}
+
+/// Castigos: cada uno es un chupito que se debe. Al apuntarse un chupito se paga uno.
+struct Castigos: View {
+    @EnvironmentObject var mesa: Mesa
+    var body: some View {
+        let deben = mesa.jugadores.filter { $0.castigos > 0 }.sorted { $0.castigos > $1.castigos }
+        let mios = mesa.yo.flatMap { mesa.jugador($0)?.castigos } ?? 0
+        if !deben.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Text("💀").font(.system(size: 34))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(mios > 0 ? "Debes \(mios) \(mios == 1 ? "chupito" : "chupitos") de castigo" : "Castigos pendientes").font(.system(size: 18, weight: .heavy))
+                        Text("Cada castigo es un chupito. Al apuntarte un chupito se paga uno.").font(.system(size: 13)).foregroundStyle(Paleta.texto2)
+                    }
+                }
+                FlowLayout(espacio: 8) {
+                    ForEach(deben) { j in
+                        HStack(spacing: 6) {
+                            Avatar(u: j.id, lado: 26)
+                            Text("\(j.nombre) · \(j.castigos)").font(.system(size: 14, weight: .heavy))
+                        }
+                        .padding(.leading, 4).padding(.trailing, 12).padding(.vertical, 4)
+                        .background(j.id == mesa.yo ? Paleta.mal : Color.black.opacity(0.28), in: Capsule())
+                    }
+                }
+                if mios > 0, let y = mesa.yo {
+                    Button { mesa.apuntar(y, "chupito", 1) } label: {
+                        Text("🥂  Me bebo el chupito").font(.system(size: 17, weight: .black)).frame(maxWidth: .infinity).padding(.vertical, 13)
+                            .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous)).foregroundStyle(Color(hex: 0x7a0a1c))
+                    }
+                    .buttonStyle(Pulsable())
+                }
+            }
+            .foregroundStyle(Paleta.texto)
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LinearGradient(colors: [Paleta.mal.opacity(0.45), Color(hex: 0x78001e, alpha: 0.4)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .cristal(26, tinte: Paleta.mal.opacity(0.2))
+        }
+    }
+}
+
+/// Fila que salta de línea cuando no cabe
+struct FlowLayout: Layout {
+    var espacio: CGFloat = 8
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let ancho = proposal.width ?? 300
+        var x: CGFloat = 0, y: CGFloat = 0, fila: CGFloat = 0
+        for v in subviews {
+            let t = v.sizeThatFits(.unspecified)
+            if x + t.width > ancho && x > 0 { x = 0; y += fila + espacio; fila = 0 }
+            x += t.width + espacio; fila = max(fila, t.height)
+        }
+        return CGSize(width: ancho, height: y + fila)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, fila: CGFloat = 0
+        for v in subviews {
+            let t = v.sizeThatFits(.unspecified)
+            if x + t.width > bounds.maxX && x > bounds.minX { x = bounds.minX; y += fila + espacio; fila = 0 }
+            v.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(t))
+            x += t.width + espacio; fila = max(fila, t.height)
         }
     }
 }
@@ -234,6 +347,7 @@ struct Marcador: View {
                 Etiqueta(texto: "Marcador")
                 Spacer()
                 Text("🍺 1 · 🥃 2 · 🥂 0,5 · 🚬 0,2 · 🌿 2,5").font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Paleta.texto3)
+                    .lineLimit(1).minimumScaleFactor(0.6)
             }
             .padding(.horizontal, 6).padding(.bottom, 4)
             ForEach(Array(js.enumerated()), id: \.element.id) { i, j in
@@ -258,6 +372,7 @@ struct FilaMarcador: View {
                 HStack(spacing: 4) {
                     Text(j.nombre).font(.system(size: 17, weight: .bold))
                     if corona { Text("👑").font(.system(size: 14)) }
+                    if j.castigos > 0 { InsigniaCastigo(n: j.castigos) }
                 }
                 Text(iconos(j, mesa.C)).font(.system(size: 13)).foregroundStyle(Paleta.texto2).lineLimit(1)
                 GeometryReader { g in
@@ -378,4 +493,15 @@ struct UltimasJugadas: View {
 
 extension Array {
     subscript(safe i: Int) -> Element? { indices.contains(i) ? self[i] : nil }
+}
+
+
+struct InsigniaCastigo: View {
+    let n: Int
+    var body: some View {
+        Text("💀 \(n)").font(.system(size: 12, weight: .heavy)).foregroundStyle(.white)
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(Paleta.mal.opacity(0.9), in: Capsule())
+            .accessibilityLabel("\(n) \(n == 1 ? "castigo" : "castigos"): chupitos pendientes")
+    }
 }

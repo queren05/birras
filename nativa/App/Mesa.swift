@@ -104,6 +104,13 @@ final class Mesa: ObservableObject {
         }
     }
 
+    /// Tirar hacia abajo para recargar todo
+    func recargar() async {
+        arrancar()
+        try? await Task.sleep(nanoseconds: 900_000_000)
+        Haptica.suave()
+    }
+
     /// Al volver a la app: si la conexión se cayó en segundo plano, se recarga todo.
     func alVolver() {
         refrescar()
@@ -475,6 +482,9 @@ final class Mesa: ObservableObject {
                 if e.p == "happy" { lanzarFiesta("Happy Hour", "fichas x2 · 15 min", ["⏰", "🍺"], 100); Sonido.shared.tocar(.jackpot) }
                 else if e.p == "diana" { avisar("🎯  \(quien) apunta a \(nombre(e.obj ?? ""))") }
                 else if let P = C.tienda.first(where: { $0.id == e.p }) { if mio { lanzarFiesta(P.ico, P.nombre, [P.ico], 20) } else { avisar("\(P.ico)  \(quien) activa \(P.nombre)") } }
+            case "castigo":
+                if e.u == yo { lanzarFiesta("💀 Castigo pagado", (e.n ?? 0) > 0 ? "te quedan \(e.n ?? 0)" : "limpio", ["🥂", "💀"], 20) }
+                else { avisar("💀  \(quien) paga un castigo") }
             case "pref":
                 if let u = e.u { avisar(jugador(u)?.principal == "cubata" ? "🥃  A \(nombre(u)) le cuentan los cubatas" : "🍺  \(nombre(u)) vuelve a la cerveza") }
             case "jugador":

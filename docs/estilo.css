@@ -32,6 +32,16 @@
 [data-tema="toxico"]{--c1:#b6ff00;--c2:#00ff9d;--c3:#ffe600;--c4:#00b3ff;--base1:#5cff00;--base2:#1e7a00;--base3:#062a0c;--noche-t:#020f04;--ambar:#d4ff3a;--ambar2:#5cff00}
 [data-tema="fresa"]{--c1:#ff4f7b;--c2:#ffb3c7;--c3:#ff7a00;--c4:#ff2e2e;--base1:#ff6f91;--base2:#c2185b;--base3:#3d0018;--noche-t:#1c000b;--ambar:#ffc2d1;--ambar2:#ff4f7b}
 [data-tema="noche"]{--c1:#4b3bff;--c2:#202040;--c3:#6a6a90;--c4:#00ffd0;--base1:#30305a;--base2:#15152b;--base3:#08080f;--noche-t:#050508;--ambar:#c9c9ff;--ambar2:#7b7bff}
+[data-tema="atardecer"]{--c1:#ff5e3a;--c2:#ff2a6d;--c3:#ffb347;--c4:#ffd23f;--base1:#7a1f5c;--base2:#7a1f5c;--base3:#2b0a3d;--noche-t:#14051f;--ambar:#ffb347;--ambar2:#ff5e3a}
+[data-tema="galaxia"]{--c1:#6a00ff;--c2:#00d4ff;--c3:#ff00a8;--c4:#3d5afe;--base1:#1a0b4d;--base2:#1a0b4d;--base3:#05021a;--noche-t:#02010d;--ambar:#ff00a8;--ambar2:#6a00ff}
+[data-tema="mojito"]{--c1:#7cff6b;--c2:#d4ff3a;--c3:#2effc4;--c4:#f0ffd0;--base1:#0d4d2e;--base2:#0d4d2e;--base3:#062a1a;--noche-t:#02140c;--ambar:#2effc4;--ambar2:#7cff6b}
+[data-tema="jager"]{--c1:#ff7a00;--c2:#3d5a1f;--c3:#c8a24a;--c4:#8a1f1f;--base1:#1f2e12;--base2:#1f2e12;--base3:#0f1a0a;--noche-t:#070d04;--ambar:#c8a24a;--ambar2:#ff7a00}
+[data-tema="kalimotxo"]{--c1:#8a0030;--c2:#ff2a5a;--c3:#5a1fa8;--c4:#ff7aa0;--base1:#3d0020;--base2:#3d0020;--base3:#1a0010;--noche-t:#0d0008;--ambar:#5a1fa8;--ambar2:#8a0030}
+[data-tema="lava"]{--c1:#ff3d00;--c2:#ffb300;--c3:#ff6a00;--c4:#ff0040;--base1:#5a1200;--base2:#5a1200;--base3:#1a0500;--noche-t:#0d0200;--ambar:#ff6a00;--ambar2:#ff3d00}
+[data-tema="hielo"]{--c1:#9ff3ff;--c2:#3ab0ff;--c3:#e0ffff;--c4:#6f8cff;--base1:#0a3d5a;--base2:#0a3d5a;--base3:#021a2a;--noche-t:#010d16;--ambar:#e0ffff;--ambar2:#9ff3ff}
+[data-tema="oro"]{--c1:#ffd700;--c2:#b8860b;--c3:#fff1a8;--c4:#ff9a00;--base1:#3d2e00;--base2:#3d2e00;--base3:#1a1200;--noche-t:#0d0900;--ambar:#fff1a8;--ambar2:#ffd700}
+[data-tema="vapor"]{--c1:#ff71ce;--c2:#01cdfe;--c3:#b967ff;--c4:#05ffa1;--base1:#3d0066;--base2:#3d0066;--base3:#1a0033;--noche-t:#0d001a;--ambar:#b967ff;--ambar2:#ff71ce}
+[data-tema="tequila"]{--c1:#ffc94a;--c2:#ff6b35;--c3:#a8e063;--c4:#ff4e50;--base1:#5a2e00;--base2:#5a2e00;--base3:#2a1400;--noche-t:#140a00;--ambar:#a8e063;--ambar2:#ffc94a}
 [hidden]{display:none!important}
 *{box-sizing:border-box;margin:0;padding:0}
 html{background:var(--noche-t);color:var(--txt);-webkit-text-size-adjust:100%}
@@ -821,3 +831,16 @@ html{-webkit-overflow-scrolling:touch}
 .ficha-ap:nth-child(7){background:repeating-conic-gradient(#7b3dff 0 30deg,#fff 30deg 45deg);box-shadow:inset 0 0 0 5px #4a1fa8,0 4px 10px rgba(0,0,0,.3)}
 .ficha-ap:nth-child(8){background:repeating-conic-gradient(#00a3a3 0 30deg,#fff 30deg 45deg);box-shadow:inset 0 0 0 5px #006b6b,0 4px 10px rgba(0,0,0,.3)}
 .ficha-ap:nth-child(9){background:repeating-conic-gradient(#c8102e 0 30deg,#ffd84a 30deg 45deg);box-shadow:inset 0 0 0 5px #7a0a1c,0 4px 10px rgba(0,0,0,.3)}
+
+/* Castigos: chupitos que se deben */
+.castigos-card{padding:14px 16px;display:grid;gap:10px;margin-bottom:12px;background:linear-gradient(135deg,rgba(230,30,50,.62),rgba(110,0,25,.6))!important}
+.castigos-card .c-cab{display:flex;align-items:center;gap:10px}
+.castigos-card .c-cab .e{font-size:30px}
+.castigos-card .c-cab b{font-size:17px;line-height:1.2}
+.castigos-card .c-cab span{display:block;font-size:13px;color:var(--txt2);font-weight:500}
+.castigos-card .c-lista{display:flex;flex-wrap:wrap;gap:8px}
+.castigos-card .c-p{display:flex;align-items:center;gap:7px;padding:5px 12px 5px 5px;border-radius:99px;background:rgba(0,0,0,.25);font-weight:800;font-size:14px}
+.castigos-card .c-p .av{width:28px;height:28px;font-size:13px}
+.castigos-card .c-p.yo{background:#ff3b47;color:#fff}
+.castigos-card .pagar{padding:12px;border-radius:16px;font-weight:900;font-size:16px;background:#fff;color:#7a0a1c}
+.castigo-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 8px;border-radius:99px;background:rgba(255,59,71,.85);color:#fff;font-size:12px;font-weight:800;margin-left:4px;vertical-align:2px}

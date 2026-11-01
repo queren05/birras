@@ -363,6 +363,12 @@
       U.fichas += ganadas;
       apilar(U, d.t, ganadas);
       ef.push({ k: 'bebida', u, t: d.t, fichas: ganadas });
+      // Cada castigo es un chupito que se debe: al apuntarse un chupito se paga uno
+      if (d.t === 'chupito' && U.castigos > 0) {
+        U.castigos--;
+        feed(s, t, u, '💀', `${NOMBRES[u]} paga un castigo${U.castigos ? ` (le quedan ${U.castigos})` : '. Limpio.'}`);
+        ef.push({ k: 'castigo', op: 'paga', u, quedan: U.castigos, n: U.castigos });
+      }
       if (T.bebida && s.porras.length) {
         const ganan = s.porras.filter((p) => p.a === u);
         for (const p of ganan) if (s.users[p.u]) s.users[p.u].fichas += p.cant * (PORRA_PAGA + 1);

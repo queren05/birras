@@ -54,7 +54,7 @@ enum Paleta {
 }
 
 enum Tema: String, CaseIterable, Identifiable {
-    case birra, neon, oceano, toxico, fresa, noche
+    case birra, neon, oceano, toxico, fresa, noche, atardecer, galaxia, mojito, jager, kalimotxo, lava, hielo, oro, vapor, tequila
     var id: String { rawValue }
     var nombre: String {
         switch self {
@@ -64,9 +64,19 @@ enum Tema: String, CaseIterable, Identifiable {
         case .toxico: return "Tóxico"
         case .fresa: return "Fresa"
         case .noche: return "Noche"
+        case .atardecer: return "Atardecer"
+        case .galaxia: return "Galaxia"
+        case .mojito: return "Mojito"
+        case .jager: return "Jäger"
+        case .kalimotxo: return "Kalimotxo"
+        case .lava: return "Lava"
+        case .hielo: return "Hielo"
+        case .oro: return "Oro"
+        case .vapor: return "Vaporwave"
+        case .tequila: return "Tequila"
         }
     }
-    /// 9 colores de la malla de fondo (3x3) y el color de base
+    /// 9 colores de la malla de fondo (3x3)
     var malla: [Color] {
         let c: [UInt32]
         switch self {
@@ -76,15 +86,57 @@ enum Tema: String, CaseIterable, Identifiable {
         case .toxico: c = [0x062a0c, 0xb6ff00, 0x00b3ff, 0x1e7a00, 0x00ff9d, 0x062a0c, 0xffe600, 0x1e7a00, 0x020f04]
         case .fresa: c = [0x3d0018, 0xff4f7b, 0xff7a00, 0xc2185b, 0xffb3c7, 0x3d0018, 0xff2e2e, 0xc2185b, 0x1c000b]
         case .noche: c = [0x08080f, 0x4b3bff, 0x202040, 0x15152b, 0x00ffd0, 0x08080f, 0x6a6a90, 0x15152b, 0x050508]
+        case .atardecer: c = [0x2b0a3d, 0xff5e3a, 0xff2a6d, 0x7a1f5c, 0xffb347, 0x2b0a3d, 0xffd23f, 0x7a1f5c, 0x14051f]
+        case .galaxia: c = [0x05021a, 0x6a00ff, 0x00d4ff, 0x1a0b4d, 0xff00a8, 0x05021a, 0x3d5afe, 0x1a0b4d, 0x02010d]
+        case .mojito: c = [0x062a1a, 0x7cff6b, 0xd4ff3a, 0x0d4d2e, 0x2effc4, 0x062a1a, 0xf0ffd0, 0x0d4d2e, 0x02140c]
+        case .jager: c = [0x0f1a0a, 0xff7a00, 0x3d5a1f, 0x1f2e12, 0xc8a24a, 0x0f1a0a, 0x8a1f1f, 0x1f2e12, 0x070d04]
+        case .kalimotxo: c = [0x1a0010, 0x8a0030, 0xff2a5a, 0x3d0020, 0x5a1fa8, 0x1a0010, 0xff7aa0, 0x3d0020, 0x0d0008]
+        case .lava: c = [0x1a0500, 0xff3d00, 0xffb300, 0x5a1200, 0xff6a00, 0x1a0500, 0xff0040, 0x5a1200, 0x0d0200]
+        case .hielo: c = [0x021a2a, 0x9ff3ff, 0x3ab0ff, 0x0a3d5a, 0xe0ffff, 0x021a2a, 0x6f8cff, 0x0a3d5a, 0x010d16]
+        case .oro: c = [0x1a1200, 0xffd700, 0xb8860b, 0x3d2e00, 0xfff1a8, 0x1a1200, 0xff9a00, 0x3d2e00, 0x0d0900]
+        case .vapor: c = [0x1a0033, 0xff71ce, 0x01cdfe, 0x3d0066, 0xb967ff, 0x1a0033, 0x05ffa1, 0x3d0066, 0x0d001a]
+        case .tequila: c = [0x2a1400, 0xffc94a, 0xff6b35, 0x5a2e00, 0xa8e063, 0x2a1400, 0xff4e50, 0x5a2e00, 0x140a00]
         }
         return c.map { Color(hex: $0) }
     }
-    var muestra: LinearGradient { LinearGradient(colors: [malla[1], malla[4]], startPoint: .topLeading, endPoint: .bottomTrailing) }
+    var muestra: LinearGradient { LinearGradient(colors: [malla[1], malla[4], malla[6]], startPoint: .topLeading, endPoint: .bottomTrailing) }
+}
+
+/// Tipografías (cada móvil la suya)
+enum Letra: String, CaseIterable, Identifiable {
+    case redonda, sistema, elegante, maquina, ancha, estrecha
+    var id: String { rawValue }
+    var nombre: String {
+        switch self {
+        case .redonda: return "Redonda"
+        case .sistema: return "Sistema"
+        case .elegante: return "Elegante"
+        case .maquina: return "Máquina"
+        case .ancha: return "Ancha"
+        case .estrecha: return "Estrecha"
+        }
+    }
+    var diseno: Font.Design {
+        switch self {
+        case .redonda: return .rounded
+        case .elegante: return .serif
+        case .maquina: return .monospaced
+        default: return .default
+        }
+    }
+    var anchura: Font.Width {
+        switch self {
+        case .ancha: return .expanded
+        case .estrecha: return .condensed
+        default: return .standard
+        }
+    }
 }
 
 /// Fondo vivo: malla de color que respira despacio (MeshGradient de iOS 18).
 struct Fondo: View {
     @AppStorage("tema") private var tema = Tema.birra.rawValue
+    @AppStorage("burbujas") private var burbujas = true
     @State private var fase = false
     var body: some View {
         let t = Tema(rawValue: tema) ?? .birra
@@ -96,8 +148,33 @@ struct Fondo: View {
         ]
         MeshGradient(width: 3, height: 3, points: puntos, colors: t.malla)
         .overlay(Color.black.opacity(0.32))
+        .overlay { if burbujas { Burbujas() } }
         .ignoresSafeArea()
+        .allowsHitTesting(false)
         .onAppear { withAnimation(.easeInOut(duration: 9).repeatForever(autoreverses: true)) { fase.toggle() } }
+    }
+}
+
+/// Burbujas subiendo, como el gas de una caña
+struct Burbujas: View {
+    private struct B { let x: Double; let r: Double; let v: Double; let fase: Double }
+    @State private var bs: [B] = (0..<22).map { _ in B(x: .random(in: 0...1), r: .random(in: 1.5...6), v: .random(in: 0.025...0.08), fase: .random(in: 0...1)) }
+    var body: some View {
+        if UIAccessibility.isReduceMotionEnabled { Color.clear } else {
+            TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
+                Canvas { ctx, size in
+                    let t = tl.date.timeIntervalSinceReferenceDate
+                    for b in bs {
+                        let y = 1.05 - ((t * b.v + b.fase).truncatingRemainder(dividingBy: 1.1))
+                        let x = b.x * size.width + sin(t * 1.6 + b.fase * 6) * 6
+                        let rect = CGRect(x: x - b.r, y: y * size.height - b.r, width: b.r * 2, height: b.r * 2)
+                        ctx.fill(Path(ellipseIn: rect), with: .color(Color(red: 1, green: 0.94, blue: 0.82, opacity: 0.1)))
+                        ctx.stroke(Path(ellipseIn: rect), with: .color(.white.opacity(0.4)), lineWidth: 0.8)
+                        ctx.fill(Path(ellipseIn: CGRect(x: x - b.r * 0.6, y: y * size.height - b.r * 0.6, width: b.r * 0.6, height: b.r * 0.6)), with: .color(.white.opacity(0.7)))
+                    }
+                }
+            }
+        }
     }
 }
 

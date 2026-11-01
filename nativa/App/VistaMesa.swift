@@ -60,7 +60,7 @@ struct FilaClasificacion: View {
                 HStack(spacing: 4) {
                     Text(j.nombre).font(.system(size: 17, weight: .bold))
                     if i < 3 && j.pts > 0 { Text(["🥇", "🥈", "🥉"][i]).font(.system(size: 14)) }
-                    if j.castigos > 0 { Text("💀\(j.castigos)").font(.system(size: 12, weight: .bold)).foregroundStyle(Paleta.texto2) }
+                    if j.castigos > 0 { InsigniaCastigo(n: j.castigos) }
                 }
                 Text(iconos(j, mesa.C)).font(.system(size: 13)).foregroundStyle(Paleta.texto2).lineLimit(1)
                 Text(j.seco ? "Seco hace \(horas(seg))" : "\(cub ? "Último cubata" : "Última cerveza") hace \(horas(seg))")

@@ -3,12 +3,15 @@ import SwiftUI
 @main
 struct BirrasProApp: App {
     @StateObject private var mesa = Mesa()
+    @AppStorage("letra") private var letra = Letra.redonda.rawValue
     var body: some Scene {
         WindowGroup {
+            let l = Letra(rawValue: letra) ?? .redonda
             Raiz()
                 .environmentObject(mesa)
                 .preferredColorScheme(.dark)
-                .fontDesign(.rounded)
+                .fontDesign(l.diseno)
+                .fontWidth(l.anchura)
                 .tint(Paleta.oro)
         }
     }
@@ -20,19 +23,18 @@ struct Raiz: View {
     @State private var pestana = 0
 
     var body: some View {
-        ZStack {
-            TabView(selection: $pestana) {
-                Tab("Bote", systemImage: "mug.fill", value: 0) { VistaBote() }
-                Tab("Casino", systemImage: "suit.club.fill", value: 1) { VistaCasino() }
-                Tab("Noche", systemImage: "chart.bar.xaxis", value: 2) { VistaNoche() }
-                Tab("Mesa", systemImage: "person.3.fill", value: 3) { VistaMesa() }
-            }
-            .onChange(of: pestana) { _, _ in Haptica.suave() }
-
-            CapaFiesta()
-            ListaAvisos()
-            CapaBronca()
-
+        // Las capas van encima con overlay: así nunca pueden ensanchar la pantalla
+        TabView(selection: $pestana) {
+            Tab("Bote", systemImage: "mug.fill", value: 0) { VistaBote() }
+            Tab("Casino", systemImage: "suit.club.fill", value: 1) { VistaCasino() }
+            Tab("Noche", systemImage: "chart.bar.xaxis", value: 2) { VistaNoche() }
+            Tab("Mesa", systemImage: "person.3.fill", value: 3) { VistaMesa() }
+        }
+        .onChange(of: pestana) { _, _ in Haptica.suave() }
+        .overlay { CapaFiesta() }
+        .overlay { ListaAvisos() }
+        .overlay { CapaBronca() }
+        .overlay {
             if mesa.vista == nil {
                 ZStack {
                     Fondo()
@@ -60,22 +62,27 @@ struct Pantalla<Contenido: View>: View {
     var titulo: String? = nil
     @ViewBuilder let contenido: () -> Contenido
     var body: some View {
-        ZStack {
-            Fondo()
-            ScrollView {
+        GeometryReader { g in
+            ScrollView(.vertical) {
                 VStack(spacing: 14) {
                     Cabecera()
                     if let titulo {
-                        Text(titulo).font(.system(size: 34, weight: .heavy, design: .rounded)).foregroundStyle(Paleta.texto)
+                        Text(titulo).font(.system(size: 34, weight: .heavy)).foregroundStyle(Paleta.texto)
                             .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4)
                     }
                     contenido()
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 30)
+                // Ancho fijo = el de la pantalla: nada puede hacer que se deslice de lado
+                .frame(width: g.size.width)
+                .clipped()
             }
             .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+            .refreshable { await mesa.recargar() }
         }
+        .background { Fondo() }
     }
 }
 

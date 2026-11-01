@@ -265,7 +265,7 @@
       const estado = secos.has(u) ? `<em class="mal">Seco hace ${B.horasTexto(seg)}</em>` : `${B.principal(u) === 'cubata' ? 'Último cubata' : 'Última cerveza'} hace ${B.horasTexto(seg)}`;
       return `<div class="persona${u === yo ? ' yo' : ''}${secos.has(u) ? ' seco' : ''}" data-persona="${u}" role="button" tabindex="0" aria-label="${B.NOMBRES[u]}: toca para corregir">
         <span class="pos num">${i + 1}</span>${av(u)}
-        <div class="p-txt"><div class="nom">${B.NOMBRES[u]}${i < 3 && aporte(u) ? ` <span class="medalla">${['🥇', '🥈', '🥉'][i]}</span>` : ''}${U.castigos ? ` <span class="castigos">💀${U.castigos}</span>` : ''}</div>
+        <div class="p-txt"><div class="nom">${B.NOMBRES[u]}${i < 3 && aporte(u) ? ` <span class="medalla">${['🥇', '🥈', '🥉'][i]}</span>` : ''}${U.castigos ? ` <span class="castigo-badge">💀 ${U.castigos} ${U.castigos === 1 ? 'chupito' : 'chupitos'}</span>` : ''}</div>
           <div class="det">${ic}</div><div class="hace">${estado}</div></div>
         <div class="cifras num"><b>${B.fmtPts(aporte(u))}</b><span>${U.fichas} <i>fichas</i></span></div>
         <span class="chevron" aria-hidden="true">›</span>
@@ -311,6 +311,7 @@
     if (ult) $('deshacer').textContent = `↩︎ Deshacer: ${ult.n > 0 ? '+1' : '−1'} ${B.TIPOS[ult.t].nombre.toLowerCase()}${ult.u !== yo ? ` de ${B.NOMBRES[ult.u]}` : ''}${pila.length > 1 ? ` · quedan ${pila.length}` : ''}`;
     if ($('capaFix').classList.contains('on')) pintarFix();
     pintarRetos();
+    pintarCastigos();
     pintarTienda(U);
     pintarCola();
     pintarApuesta();
@@ -678,6 +679,16 @@
     ['birra', 'Birra', 'linear-gradient(135deg,#ffb21a,#ff3d81)'], ['neon', 'Neón', 'linear-gradient(135deg,#ff00d4,#00e5ff)'],
     ['oceano', 'Océano', 'linear-gradient(135deg,#00c2ff,#3a5bff)'], ['toxico', 'Tóxico', 'linear-gradient(135deg,#b6ff00,#00b3ff)'],
     ['fresa', 'Fresa', 'linear-gradient(135deg,#ffb3c7,#ff2e5e)'], ['noche', 'Noche', 'linear-gradient(135deg,#30305a,#08080f)'],
+    ['atardecer', 'Atardecer', 'linear-gradient(135deg,#ff5e3a,#ffb347,#ffd23f)'],
+    ['galaxia', 'Galaxia', 'linear-gradient(135deg,#6a00ff,#ff00a8,#3d5afe)'],
+    ['mojito', 'Mojito', 'linear-gradient(135deg,#7cff6b,#2effc4,#f0ffd0)'],
+    ['jager', 'Jäger', 'linear-gradient(135deg,#ff7a00,#c8a24a,#8a1f1f)'],
+    ['kalimotxo', 'Kalimotxo', 'linear-gradient(135deg,#8a0030,#5a1fa8,#ff7aa0)'],
+    ['lava', 'Lava', 'linear-gradient(135deg,#ff3d00,#ff6a00,#ff0040)'],
+    ['hielo', 'Hielo', 'linear-gradient(135deg,#9ff3ff,#e0ffff,#6f8cff)'],
+    ['oro', 'Oro', 'linear-gradient(135deg,#ffd700,#fff1a8,#ff9a00)'],
+    ['vapor', 'Vaporwave', 'linear-gradient(135deg,#ff71ce,#b967ff,#05ffa1)'],
+    ['tequila', 'Tequila', 'linear-gradient(135deg,#ffc94a,#a8e063,#ff4e50)'],
     ['claro', 'Claro', 'linear-gradient(135deg,#fff7e8,#ffd27a)'], ['auto', 'Automático (claro de día, oscuro de noche según el móvil)', 'linear-gradient(135deg,#fff7e8 50%,#16050c 50%)'],
   ];
   const oscuroSistema = matchMedia('(prefers-color-scheme: dark)');
@@ -1068,6 +1079,9 @@
           if (e.u === yo) { flotante(`+${e.cant * 2}`, 'reto ganado'); confeti(120, ['🤺', '🪙', '🏆']); sonar('jackpot'); vibrar('fuerte'); }
           else toast(`🤺  ${B.NOMBRES[e.u]} gana el reto · +${e.cant * 2}`);
         } else if ((e.op === 'rechazar' || e.op === 'caduca') && e.de === yo) toast(e.op === 'rechazar' ? `🏳️  ${a} se raja. Te devuelven las fichas.` : `⌛  ${a} no ha contestado. Te devuelven las fichas.`);
+      } else if (e.k === 'castigo') {
+        if (e.u === yo) flotante('💀 Castigo pagado', e.quedan ? `te quedan ${e.quedan}` : 'limpio');
+        else toast(`💀  ${quien} paga un castigo`);
       } else if (e.k === 'pref') {
         toast(B.principal(e.u) === 'cubata' ? `🥃  A ${B.NOMBRES[e.u]} le cuentan los cubatas` : `🍺  ${B.NOMBRES[e.u]} vuelve a la cerveza`);
       } else if (e.k === 'jugador') {
@@ -1265,6 +1279,19 @@
     }).join('');
     if (el.dataset.h !== tarjetas) { el.innerHTML = tarjetas; el.dataset.h = tarjetas; }
     el.hidden = !tarjetas;
+  }
+
+  /* ================= Castigos: chupitos que se deben ================= */
+  function pintarCastigos() {
+    const el = $('castigosCard');
+    const deben = B.USERS.filter((u) => S.users[u].castigos > 0).sort((a, b) => S.users[b].castigos - S.users[a].castigos);
+    if (!deben.length) { el.hidden = true; el.dataset.h = ''; return; }
+    const mios = yo && S.users[yo] ? S.users[yo].castigos : 0;
+    const html = `<div class="c-cab"><span class="e">💀</span><div><b>${mios ? `Debes ${mios} ${mios === 1 ? 'chupito' : 'chupitos'} de castigo` : 'Castigos pendientes'}</b><span>Cada castigo es un chupito. Al apuntarte un chupito se paga uno.</span></div></div>
+      <div class="c-lista">${deben.map((u) => `<span class="c-p${u === yo ? ' yo' : ''}">${av(u)}${esc(B.NOMBRES[u])} · ${S.users[u].castigos}</span>`).join('')}</div>
+      ${mios ? '<button class="pagar pulsable" id="pagarCastigo">🥂 Me bebo el chupito</button>' : ''}`;
+    if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; const b = $('pagarCastigo'); if (b) b.onclick = () => { apuntar(yo, 'chupito', 1); sonar('moneda'); vibrar('medio'); }; }
+    el.hidden = false;
   }
 
   /* ================= Histórico de noches (lo guarda el servidor de casa) ================= */
