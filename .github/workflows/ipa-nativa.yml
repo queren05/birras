@@ -1,0 +1,80 @@
+# Compila la app NATIVA (SwiftUI + widgets + Isla Dinámica) como .ipa SIN FIRMAR para KSign
+# y la publica en la release "nativa-latest" con su propia fuente de KSign (repo.json).
+name: IPA nativa para KSign
+
+on:
+  push:
+    branches: [main]
+    paths: ['nativa/**', 'docs/logica.js', 'resources/icon.png', '.github/workflows/ipa-nativa.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ipa-nativa
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Elegir el Xcode más nuevo
+        run: |
+          ls -d /Applications/Xcode*.app
+          X=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          echo "Uso $X"
+          sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Generar el proyecto
+        working-directory: nativa
+        run: |
+          brew install xcodegen >/dev/null
+          xcodegen generate
+
+      - name: Compilar sin firma
+        working-directory: nativa
+        run: |
+          set -o pipefail
+          xcodebuild -project BirrasPro.xcodeproj -scheme BirrasPro -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            MARKETING_VERSION=2.0.${{ github.run_number }} CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            build 2>&1 | tee "$RUNNER_TEMP/build.log" | grep -E "error:|warning: unre|BUILD|\*\*" | head -150
+
+      - name: Errores de compilación
+        if: failure()
+        run: grep -E "error:" -A3 "$RUNNER_TEMP/build.log" | head -200 || true
+
+      - name: Empaquetar el .ipa
+        run: |
+          APPDIR=$(find "$RUNNER_TEMP/dd/Build/Products" -maxdepth 2 -name 'BirrasPro.app' -type d | head -1)
+          test -d "$APPDIR"
+          ls "$APPDIR" "$APPDIR/PlugIns" || true
+          mkdir -p "$RUNNER_TEMP/pkg/Payload" out
+          cp -R "$APPDIR" "$RUNNER_TEMP/pkg/Payload/"
+          (cd "$RUNNER_TEMP/pkg" && zip -qry "$GITHUB_WORKSPACE/out/BirrasPro.ipa" Payload)
+          cp resources/icon.png out/icono.png
+          ls -la out
+
+      - name: Publicar el .ipa y la fuente de KSign
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=nativa-latest
+          VER=2.0.${{ github.run_number }}
+          BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
+          jq -n --arg v "$VER" --arg bv "${{ github.run_number }}" --arg u "$BASE/BirrasPro.ipa" --argjson s "$(stat -f%z out/BirrasPro.ipa)" \
+            --arg i "$BASE/icono.png" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{name:"Casino Birras Pro", identifier:"es.david.birras.pro.fuente", subtitle:"La app nativa", iconURL:$i, tintColor:"ffb21a",
+              apps:[{name:"Birras Pro", bundleIdentifier:"es.david.birras.pro", developerName:"David", subtitle:"El bote, nativo",
+                localizedDescription:"La versión nativa de Casino Birras: Liquid Glass, widgets, Isla Dinámica, Siri y botón en el Centro de Control. Comparte el bote con la web.",
+                iconURL:$i, tintColor:"ffb21a", category:"entertainment",
+                versions:[{version:$v, buildVersion:$bv, date:$date, downloadURL:$u, size:$s, localizedDescription:("Versión " + $v), minOSVersion:"18.0"}]}]}' > out/repo.json
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Birras Pro (nativa)" --notes "Añade en KSign la fuente: $BASE/repo.json"
+          gh release upload "$TAG" out/BirrasPro.ipa out/icono.png out/repo.json --clobber

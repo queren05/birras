@@ -2,3 +2,6 @@ guardian.js
 node_modules/
 ios/
 assets/
+nativa/*.xcodeproj/
+nativa/App/Info.plist
+nativa/Widgets/Info.plist
