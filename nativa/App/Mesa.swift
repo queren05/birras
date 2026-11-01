@@ -441,9 +441,9 @@ final class Mesa: ObservableObject {
                 if mio { despues(0.6) { self.lanzarFiesta("Combo x\(n)", n >= 5 ? "¡imparable!" : "sigue, sigue", ["🔥", "🍺"], 40); Sonido.shared.tocar(.combo); Haptica.medio() } }
                 else if n >= 3 { avisar("🔥  \(quien) va en combo x\(n)") }
             case "clasico":
-                if mio { avisar("🍺🚬  Combo clásico · +15") } else { avisar("🍺🚬  \(quien) hace el combo clásico") }
+                if mio { avisar("🍺🚬  Combo clásico · +75") } else { avisar("🍺🚬  \(quien) hace el combo clásico") }
             case "ronda":
-                lanzarFiesta("¡Ronda!", "\(e.n ?? 3) a la vez · +50 fichas", ["🍻", "🍺", "🪙"], 160); Sonido.shared.tocar(.jackpot); Haptica.fuerte()
+                lanzarFiesta("¡Ronda!", "\(e.n ?? 3) a la vez · +250 fichas", ["🍻", "🍺", "🪙"], 160); Sonido.shared.tocar(.jackpot); Haptica.fuerte()
             case "logro":
                 despues(0.7) { self.lanzarFiesta("🏆 \((e.txt ?? "").lowercased())", quien, ["🏆", "🍺"], 100); Sonido.shared.tocar(.jackpot) }
             case "logroGrupo":

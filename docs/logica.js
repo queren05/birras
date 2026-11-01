@@ -36,18 +36,19 @@
   const idDe = (nombre) => String(nombre).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').slice(0, 16);
 
   const TIPOS = {
-    cerveza: { pts: 1, un: 'una cerveza', nombre: 'Cerveza', plural: 'Cervezas', ico: '🍺', fichas: 10, bebida: true },
-    cubata: { pts: 2, un: 'un cubata', nombre: 'Cubata', plural: 'Cubatas', ico: '🥃', fichas: 25, bebida: true },
-    chupito: { pts: 0.5, un: 'un chupito', nombre: 'Chupito', plural: 'Chupitos', ico: '🥂', fichas: 15, bebida: true },
-    cigarro: { pts: 0.2, un: 'un cigarro', nombre: 'Cigarro', plural: 'Cigarros', ico: '🚬', fichas: 5, bebida: false },
-    porro: { pts: 2.5, un: 'un porro', nombre: 'Porro', plural: 'Porros', ico: '🌿', fichas: 25, bebida: false },
+    cerveza: { pts: 1, un: 'una cerveza', nombre: 'Cerveza', plural: 'Cervezas', ico: '🍺', fichas: 50, bebida: true },
+    cubata: { pts: 2, un: 'un cubata', nombre: 'Cubata', plural: 'Cubatas', ico: '🥃', fichas: 125, bebida: true },
+    chupito: { pts: 0.5, un: 'un chupito', nombre: 'Chupito', plural: 'Chupitos', ico: '🥂', fichas: 75, bebida: true },
+    cigarro: { pts: 0.2, un: 'un cigarro', nombre: 'Cigarro', plural: 'Cigarros', ico: '🚬', fichas: 25, bebida: false },
+    porro: { pts: 2.5, un: 'un porro', nombre: 'Porro', plural: 'Porros', ico: '🌿', fichas: 125, bebida: false },
   };
 
   const COMBO_VENTANA = 20 * 60;   // bebidas a menos de 20 min encadenan combo
   const COMBO_MAX = 5;
   const RONDA_VENTANA = 5 * 60;    // 3 o más con cerveza en 5 min = RONDA
   const CLASICO_VENTANA = 5 * 60;  // birra + piti en 5 min
-  const HORA_SECA = 3600;          // una hora sin cerveza = insultos
+  const HORA_SECA = 3600;
+  const RONDA_FICHAS = 250, CLASICO_FICHAS = 75;   // fichas x5 desde el 1-11-2026          // una hora sin cerveza = insultos
   const NOCHE_ACTIVA = 6 * 3600;   // fuera de la noche no se insulta a nadie
 
   const SLOT_COSTE = 25;
@@ -394,14 +395,14 @@
         const enRonda = USERS.filter((x) => s.users[x].ultEv && t - s.users[x].ultEv <= RONDA_VENTANA);
         if (enRonda.length >= 3 && t - s.ultRonda > RONDA_VENTANA) {
           s.ultRonda = t; s.rondas++;
-          for (const x of enRonda) s.users[x].fichas += 50 * mult();
+          for (const x of enRonda) s.users[x].fichas += RONDA_FICHAS * mult();
           ef.push({ k: 'ronda', n: enRonda.length });
-          feed(s, t, u, '🍻', `¡RONDA de ${enRonda.length}! +${50 * mult()} fichas para ${enRonda.map((x) => NOMBRES[x]).join(', ')}`);
+          feed(s, t, u, '🍻', `¡RONDA de ${enRonda.length}! +${RONDA_FICHAS * mult()} fichas para ${enRonda.map((x) => NOMBRES[x]).join(', ')}`);
         }
       }
       if ((d.t === 'cerveza' && t - U.ultCigarro <= CLASICO_VENTANA && U.ultCigarro) ||
           (d.t === 'cigarro' && t - U.ultCerveza <= CLASICO_VENTANA && U.c.cerveza > 0)) {
-        U.fichas += 15 * mult();
+        U.fichas += CLASICO_FICHAS * mult();
         ef.push({ k: 'clasico', u });
       }
       if (d.t === 'cigarro') U.ultCigarro = t;
@@ -702,7 +703,7 @@
 
   return {
     TOPIC, TOPIC_AVISOS, NTFY, USERS, NOMBRES, TIPOS, TIENDA, SIMBOLOS, SLOT_COSTE,
-    COMBO_VENTANA, COMBO_MAX, HORA_SECA,
+    COMBO_VENTANA, COMBO_MAX, HORA_SECA, RONDA_FICHAS, CLASICO_FICHAS,
     ADMIN, idDe, principal, RETO_PLAZO, RETO_ESPERA, vencerRetos, valorCarta, totalBJ, resultadoBJ, crashValido, CABALLOS, CARRERA_PAGA, PORRA_PAGA, colorRuleta, APUESTAS_RULETA, APUESTAS_DADOS, APUESTA_MIN, SIMBOLOS_RASCA, RASCA_COSTE, PREMIOS_RASCA, premioRasca, tirarRasca, estadoInicial, normalizar, paraSnap, ORDEN, aplicar, puntos, fmtPts, reconstruir, parsear, premioSlot, tirarSlot, totalGrupo,
     secos, insulto, horasTexto, clon,
   };

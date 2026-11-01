@@ -64,13 +64,13 @@ struct SelectorApuesta: View {
     @Binding var cant: Int
     var body: some View {
         let f = mesa.vista?.mio?.fichas ?? 0
-        let ops = [5, 10, 25, 50, 100, 250].filter { $0 <= max(f, 5) }
-        let colores: [Color] = [Color(hex: 0x2a6fd6), Paleta.fresa, Color(hex: 0x0f8a4f), Color(hex: 0x222222), Color(hex: 0x7b3dff), Paleta.ambar]
+        let ops = [5, 10, 25, 50, 100, 250, 500, 1000, 2500].filter { $0 <= max(f, 5) }
+        let colores: [Color] = [Color(hex: 0x2a6fd6), Paleta.fresa, Color(hex: 0x0f8a4f), Color(hex: 0x222222), Color(hex: 0x7b3dff), Paleta.ambar, Color(hex: 0xb8860b), Color(hex: 0x00a3a3), Color(hex: 0xc8102e)]
         ScrollView(.horizontal) {
             HStack(spacing: 10) {
                 ForEach(Array(ops.enumerated()), id: \.element) { i, x in
                     Button { cant = x; Haptica.suave(); Sonido.shared.tocar(.moneda) } label: {
-                        Text("\(x)").font(.system(size: 15, weight: .black, design: .rounded)).foregroundStyle(.white)
+                        Text(x >= 1000 ? "\(x / 1000)K" : "\(x)").font(.system(size: x >= 1000 ? 14 : 15, weight: .black, design: .rounded)).foregroundStyle(.white)
                             .frame(width: 50, height: 50)
                             .background(Circle().fill(colores[i % colores.count]))
                             .overlay(Circle().strokeBorder(.white.opacity(0.85), style: StrokeStyle(lineWidth: 4, dash: [6, 5])).padding(3))

@@ -164,7 +164,7 @@ struct Retar: View {
     var body: some View {
         let mias = mesa.vista?.mio?.fichas ?? 0
         let suyas = mesa.jugador(u)?.fichas ?? 0
-        let ops = [10, 25, 50, 100, 250].filter { $0 <= min(mias, suyas) }
+        let ops = [10, 25, 50, 100, 250, 500, 1000].filter { $0 <= min(mias, suyas) }
         let ya = (mesa.vista?.retos ?? []).contains { $0.de == mesa.yo && $0.a == u }
         VStack(spacing: 10) {
             Divider().overlay(.white.opacity(0.12))

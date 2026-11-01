@@ -743,9 +743,9 @@
   document.querySelector('.juegos').addEventListener('click', (e) => { const b = e.target.closest('[data-juego]'); if (b) { irJuego(b.dataset.juego); vibrar('suave'); } });
   function pintarApuesta() {
     const f = yo && S ? S.users[yo].fichas : 0;
-    const ops = [5, 10, 25, 50, 100, 250].filter((x) => x <= Math.max(f, 5));
+    const ops = [5, 10, 25, 50, 100, 250, 500, 1000, 2500].filter((x) => x <= Math.max(f, 5));
     if (cantAp > f && f >= B.APUESTA_MIN) cantAp = Math.max(...ops.filter((x) => x <= f), B.APUESTA_MIN);
-    $('fichasAp').innerHTML = ops.map((x) => `<button class="ficha-ap${x === cantAp ? ' on' : ''}" data-cant="${x}"><span>${x}</span></button>`).join('') +
+    $('fichasAp').innerHTML = ops.map((x) => `<button class="ficha-ap${x === cantAp ? ' on' : ''}" data-cant="${x}"><span>${x >= 1000 ? x / 1000 + 'K' : x}</span></button>`).join('') +
       (f >= B.APUESTA_MIN ? `<button class="ficha-ap todo${cantAp === f ? ' on' : ''}" data-cant="${f}">Todo ${f}</button>` : '');
   }
   $('fichasAp').addEventListener('click', (e) => { const b = e.target.closest('[data-cant]'); if (!b) return; cantAp = +b.dataset.cant; guardar('birras-apuesta', String(cantAp)); pintarApuesta(); vibrar('suave'); sonar('moneda'); });
@@ -1086,9 +1086,9 @@
       } else if (e.k === 'racha' && mio) {
         setTimeout(() => flotante('🔥 x2', 'racha caliente'), 950);
       } else if (e.k === 'clasico') {
-        if (mio) setTimeout(() => flotante('Combo clásico', 'birra + piti · +15'), 1150); else toast(`🍺🚬  ${quien} hace el combo clásico`);
+        if (mio) setTimeout(() => flotante('Combo clásico', `birra + piti · +${B.CLASICO_FICHAS}`), 1150); else toast(`🍺🚬  ${quien} hace el combo clásico`);
       } else if (e.k === 'ronda') {
-        flotante('¡Ronda!', `${e.n} a la vez · +50 fichas`); confeti(200, ['🍻', '🍺', '🪙']); sonar('jackpot'); vibrar('fuerte');
+        flotante('¡Ronda!', `${e.n} a la vez · +${B.RONDA_FICHAS} fichas`); confeti(200, ['🍻', '🍺', '🪙']); sonar('jackpot'); vibrar('fuerte');
       } else if (e.k === 'logro') {
         setTimeout(() => { flotante('🏆 ' + e.txt.toLowerCase(), quien); confeti(120, ['🏆', '🍺']); sonar('jackpot'); }, 700);
       } else if (e.k === 'logroGrupo') {
@@ -1233,7 +1233,7 @@
   function htmlRetar(u) {
     if (!yo || !S || u === yo || !S.users[u]) return '';
     const mias = S.users[yo].fichas, suyas = S.users[u].fichas;
-    const ops = [10, 25, 50, 100, 250].filter((x) => x <= Math.min(mias, suyas));
+    const ops = [10, 25, 50, 100, 250, 500, 1000].filter((x) => x <= Math.min(mias, suyas));
     const ya = (S.retos || []).some((r) => r.de === yo && r.a === u);
     if (!ops.includes(retoCant)) retoCant = ops.length ? ops[Math.min(1, ops.length - 1)] : 10;
     const motivo = ya ? `Ya tienes un reto pendiente con ${B.NOMBRES[u]}.` : !ops.length ? `Hacen falta 10 fichas cada uno (tú ${mias}, ${B.NOMBRES[u]} ${suyas}).` : '';
